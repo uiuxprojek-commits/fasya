@@ -45,29 +45,34 @@ export default function DashboardPage() {
   const fetchDashboardData = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      // 1. Fetch Wallets
-      const walletsRes = await fetch('/api/wallets');
-      const walletsData = await walletsRes.json();
+      const [walletsRes, txRes, catRes, bgtRes] = await Promise.all([
+        fetch('/api/wallets'),
+        fetch('/api/transactions?limit=25'),
+        fetch('/api/categories'),
+        fetch('/api/budgets'),
+      ]);
+
+      const [walletsData, txData, catData, bgtData] = await Promise.all([
+        walletsRes.json(),
+        txRes.json(),
+        catRes.json(),
+        bgtRes.json(),
+      ]);
+
+      // 1. Wallets
       const loadedWallets: Wallet[] = walletsData.wallets || [];
       setWallets(loadedWallets);
-
       const bal = loadedWallets.reduce((acc, w) => acc + Number(w.balance), 0);
       setTotalBalance(bal);
 
-      // 2. Fetch Transactions
-      const txRes = await fetch('/api/transactions?limit=25');
-      const txData = await txRes.json();
+      // 2. Transactions
       const loadedTxs: Transaction[] = txData.transactions || [];
       setTransactions(loadedTxs);
 
-      // 3. Fetch Categories
-      const catRes = await fetch('/api/categories');
-      const catData = await catRes.json();
+      // 3. Categories
       setCategories(catData.categories || []);
 
-      // 4. Fetch Budgets
-      const bgtRes = await fetch('/api/budgets');
-      const bgtData = await bgtRes.json();
+      // 4. Budgets
       const loadedBudgets = bgtData.budgets || [];
       const totalBgt = loadedBudgets.reduce((acc: number, b: any) => acc + Number(b.monthly_amount), 0);
       const totalBgtSpent = loadedBudgets.reduce((acc: number, b: any) => acc + Number(b.spent_amount), 0);

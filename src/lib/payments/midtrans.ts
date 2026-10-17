@@ -96,7 +96,7 @@ export class MidtransService {
       },
     };
 
-    let targetUrl = this.snapUrl;
+    const targetUrl = this.snapUrl;
     console.log('[Midtrans] Creating transaction on:', targetUrl, {
       orderId: params.orderId,
       grossAmount: grossAmountInt,

@@ -31,22 +31,13 @@ export function TransactionModal({
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState('');
 
-  React.useEffect(() => {
-    if (wallets.length > 0 && !walletId) {
-      const defaultW = wallets.find((w) => w.is_default) || wallets[0];
-      setWalletId(defaultW.id);
-    }
-  }, [wallets, walletId]);
+  const defaultWalletId = wallets.find((w) => w.is_default)?.id || wallets[0]?.id || '';
+  const currentWalletId = walletId || defaultWalletId;
 
   const filteredCategories = categories.filter((c) => c.type === type);
-
-  React.useEffect(() => {
-    if (filteredCategories.length > 0) {
-      setCategoryId(filteredCategories[0].id);
-    } else {
-      setCategoryId('');
-    }
-  }, [type]);
+  const currentCategoryId = categoryId && filteredCategories.some((c) => c.id === categoryId)
+    ? categoryId
+    : filteredCategories[0]?.id || '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +49,7 @@ export function TransactionModal({
       return;
     }
 
-    if (!walletId) {
+    if (!currentWalletId) {
       setErrorMessage('Pilih dompet tujuan');
       return;
     }
@@ -71,8 +62,8 @@ export function TransactionModal({
         body: JSON.stringify({
           type,
           amount: numAmount,
-          walletId,
-          categoryId: categoryId || null,
+          walletId: currentWalletId,
+          categoryId: currentCategoryId || null,
           notes,
           date: new Date(date).toISOString(),
           source: 'web',
@@ -150,7 +141,7 @@ export function TransactionModal({
             Dompet
           </label>
           <select
-            value={walletId}
+            value={currentWalletId}
             onChange={(e) => setWalletId(e.target.value)}
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
           >
@@ -168,7 +159,7 @@ export function TransactionModal({
             Kategori
           </label>
           <select
-            value={categoryId}
+            value={currentCategoryId}
             onChange={(e) => setCategoryId(e.target.value)}
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
           >

@@ -28,12 +28,8 @@ export function TransferModal({
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState('');
 
-  React.useEffect(() => {
-    if (wallets.length >= 2) {
-      if (!fromWalletId) setFromWalletId(wallets[0].id);
-      if (!toWalletId) setToWalletId(wallets[1].id);
-    }
-  }, [wallets, fromWalletId, toWalletId]);
+  const effectiveFromWalletId = fromWalletId || wallets[0]?.id || '';
+  const effectiveToWalletId = toWalletId || wallets.find((w) => w.id !== effectiveFromWalletId)?.id || wallets[1]?.id || '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +41,12 @@ export function TransferModal({
       return;
     }
 
-    if (fromWalletId === toWalletId) {
+    if (!effectiveFromWalletId || !effectiveToWalletId) {
+      setErrorMessage('Pilih dompet asal dan tujuan');
+      return;
+    }
+
+    if (effectiveFromWalletId === effectiveToWalletId) {
       setErrorMessage('Dompet asal dan tujuan tidak boleh sama');
       return;
     }
@@ -56,8 +57,8 @@ export function TransferModal({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fromWalletId,
-          toWalletId,
+          fromWalletId: effectiveFromWalletId,
+          toWalletId: effectiveToWalletId,
           amount: numAmount,
           notes,
         }),
@@ -79,7 +80,7 @@ export function TransferModal({
     }
   };
 
-  const selectedFromWallet = wallets.find((w) => w.id === fromWalletId);
+  const selectedFromWallet = wallets.find((w) => w.id === effectiveFromWalletId);
 
   return (
     <Modal
@@ -95,7 +96,7 @@ export function TransferModal({
             Dari Dompet (Sumber)
           </label>
           <select
-            value={fromWalletId}
+            value={effectiveFromWalletId}
             onChange={(e) => setFromWalletId(e.target.value)}
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
           >
@@ -113,12 +114,12 @@ export function TransferModal({
             Ke Dompet (Tujuan)
           </label>
           <select
-            value={toWalletId}
+            value={effectiveToWalletId}
             onChange={(e) => setToWalletId(e.target.value)}
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
           >
             {wallets
-              .filter((w) => w.id !== fromWalletId)
+              .filter((w) => w.id !== effectiveFromWalletId)
               .map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name} (Saldo saat ini: {formatRupiah(w.balance)})
