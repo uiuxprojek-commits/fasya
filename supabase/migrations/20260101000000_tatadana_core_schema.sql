@@ -810,7 +810,7 @@ ON CONFLICT DO NOTHING;
 -- 3. AI Providers Registry (Configurable via Admin Console)
 INSERT INTO public.ai_providers (id, name, display_name, model_name, is_active, priority, config)
 VALUES
-    ('e0000000-0000-0000-0000-000000000001', 'gemini', 'Google Gemini 1.5 Flash', 'gemini-1.5-flash', TRUE, 1, '{"temperature": 0.1, "max_tokens": 1024}'::jsonb),
+    ('e0000000-0000-0000-0000-000000000001', 'gemini', 'Google Gemini 3.8 Flash', 'gemini-3.8-flash', TRUE, 1, '{"temperature": 0.1, "max_tokens": 1024}'::jsonb),
     ('e0000000-0000-0000-0000-000000000002', 'openai', 'OpenAI GPT-4o mini', 'gpt-4o-mini', TRUE, 2, '{"temperature": 0.1, "max_tokens": 1024}'::jsonb),
     ('e0000000-0000-0000-0000-000000000003', 'deepseek', 'DeepSeek Chat V3', 'deepseek-chat', FALSE, 3, '{"temperature": 0.1, "max_tokens": 1024}'::jsonb)
 ON CONFLICT (name) DO UPDATE SET
