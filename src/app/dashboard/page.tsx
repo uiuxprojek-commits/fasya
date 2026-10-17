@@ -98,6 +98,10 @@ export default function DashboardPage() {
 
   React.useEffect(() => {
     fetchDashboardData();
+
+    const handleOpenModal = () => setIsTxModalOpen(true);
+    window.addEventListener('tatadana:open-tx-modal', handleOpenModal);
+    return () => window.removeEventListener('tatadana:open-tx-modal', handleOpenModal);
   }, [fetchDashboardData]);
 
   // Dynamic Chart aggregations
@@ -152,24 +156,26 @@ export default function DashboardPage() {
   }, [transactions]);
 
   return (
-    <div className="flex-1 pb-16">
+    <div className="flex-1 pb-8">
       <DashboardHeader
         title="Ringkasan Finansial"
         subtitle="Selamat datang kembali di TataDana. Pantau seluruh arus kasmu secara real-time."
         onOpenNewTransaction={() => setIsTxModalOpen(true)}
       />
 
-      <main className="p-6 max-w-7xl mx-auto space-y-6">
+      <main className="p-3.5 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6 min-w-0">
         {/* Period Filter Toolbar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Periode:</span>
-            <div className="flex p-1 bg-white border border-slate-200 rounded-xl shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto max-w-full pb-1 sm:pb-0">
+            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 shrink-0">
+              Periode:
+            </span>
+            <div className="flex p-0.5 sm:p-1 bg-white border border-slate-200 rounded-xl shadow-xs shrink-0">
               {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((period) => (
                 <button
                   key={period}
                   onClick={() => setFilterPeriod(period)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all capitalize ${
+                  className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all capitalize whitespace-nowrap ${
                     filterPeriod === period
                       ? 'bg-orange-500 text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -181,11 +187,12 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsTransferModalOpen(true)}
+              className="text-xs font-semibold h-8 sm:h-9"
             >
               <ArrowRightLeft className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
               Transfer Antar Wallet

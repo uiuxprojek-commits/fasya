@@ -270,12 +270,12 @@ function SettingsContent() {
         subtitle="Kelola profil, integrasi bot Telegram, pengingat harian, dan paket langganan."
       />
 
-      <main className="p-6 max-w-5xl mx-auto space-y-6">
+      <main className="p-3.5 sm:p-6 max-w-5xl mx-auto space-y-6 pb-20 md:pb-8">
         {/* Navigation Tabs */}
-        <div className="flex overflow-x-auto gap-2 border-b border-slate-200 pb-3">
+        <div className="flex overflow-x-auto gap-2 border-b border-slate-200 pb-3 -mx-3.5 px-3.5 sm:mx-0 sm:px-0 no-scrollbar scroll-smooth">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-3.5 py-2.5 min-h-[42px] shrink-0 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'profile'
                 ? 'bg-orange-500 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -286,7 +286,7 @@ function SettingsContent() {
           </button>
           <button
             onClick={() => setActiveTab('telegram')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-3.5 py-2.5 min-h-[42px] shrink-0 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'telegram'
                 ? 'bg-orange-500 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -297,7 +297,7 @@ function SettingsContent() {
           </button>
           <button
             onClick={() => setActiveTab('reminders')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-3.5 py-2.5 min-h-[42px] shrink-0 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'reminders'
                 ? 'bg-orange-500 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -308,7 +308,7 @@ function SettingsContent() {
           </button>
           <button
             onClick={() => setActiveTab('categories')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-3.5 py-2.5 min-h-[42px] shrink-0 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'categories'
                 ? 'bg-orange-500 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -319,7 +319,7 @@ function SettingsContent() {
           </button>
           <button
             onClick={() => setActiveTab('subscription')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-3.5 py-2.5 min-h-[42px] shrink-0 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'subscription'
                 ? 'bg-orange-500 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -543,12 +543,12 @@ function SettingsContent() {
                       </ol>
 
                       {/* Code Generator & Action Card */}
-                      <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
                             Kode Tautan Sekali Pakai (Berlaku 10 Menit):
                           </span>
-                          <div className="text-3xl font-black text-slate-900 font-mono tracking-widest mt-1">
+                          <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-widest mt-1">
                             {linkCode || '------'}
                           </div>
                           {codeExpiresAt && (
@@ -559,13 +559,14 @@ function SettingsContent() {
                           )}
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                           {linkCode && (
                             <>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => copyToClipboard(`/start ${linkCode}`)}
+                                className="w-full sm:w-auto"
                               >
                                 {isCopied ? (
                                   <Check className="w-3.5 h-3.5 text-emerald-600 mr-1" />
@@ -579,7 +580,7 @@ function SettingsContent() {
                                 href={directBotUrl || `https://t.me/${botUsername}?start=${linkCode}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold bg-sky-500 text-white hover:bg-sky-600 transition-colors shadow-xs"
+                                className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold bg-sky-500 text-white hover:bg-sky-600 transition-colors shadow-xs w-full sm:w-auto min-h-[36px]"
                               >
                                 <Send className="w-3.5 h-3.5 mr-1.5" />
                                 Buka Bot Otomatis
@@ -591,6 +592,7 @@ function SettingsContent() {
                             size="sm"
                             isLoading={isGeneratingCode}
                             onClick={handleGenerateLinkCode}
+                            className="w-full sm:w-auto"
                           >
                             {linkCode ? 'Buat Kode Baru' : 'Hubungkan Telegram'}
                           </Button>
@@ -626,7 +628,7 @@ function SettingsContent() {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Morning Reminder */}
-              <div className="p-4 rounded-xl border border-slate-200 flex items-center justify-between">
+              <div className="p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
                   <h4 className="text-sm font-bold text-slate-900">Pengingat Pagi</h4>
                   <p className="text-xs text-slate-500">
@@ -648,12 +650,12 @@ function SettingsContent() {
                   type="checkbox"
                   checked={morningReminder}
                   onChange={(e) => setMorningReminder(e.target.checked)}
-                  className="w-5 h-5 accent-orange-500 rounded cursor-pointer"
+                  className="w-5 h-5 accent-orange-500 rounded cursor-pointer self-end sm:self-auto"
                 />
               </div>
 
               {/* Evening Reminder */}
-              <div className="p-4 rounded-xl border border-slate-200 flex items-center justify-between">
+              <div className="p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
                   <h4 className="text-sm font-bold text-slate-900">Pengingat Malam (Evaluasi Harian)</h4>
                   <p className="text-xs text-slate-500">
@@ -675,7 +677,7 @@ function SettingsContent() {
                   type="checkbox"
                   checked={eveningReminder}
                   onChange={(e) => setEveningReminder(e.target.checked)}
-                  className="w-5 h-5 accent-orange-500 rounded cursor-pointer"
+                  className="w-5 h-5 accent-orange-500 rounded cursor-pointer self-end sm:self-auto"
                 />
               </div>
 
@@ -772,7 +774,7 @@ function SettingsContent() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Starter Plan Card */}
-              <Card className="p-6 border-slate-200">
+              <Card className="p-4 sm:p-6 border-slate-200">
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="text-base font-extrabold text-slate-900">Paket Starter</h4>
@@ -784,7 +786,7 @@ function SettingsContent() {
                 </div>
 
                 <div className="mt-4">
-                  <span className="text-3xl font-black text-slate-900">Rp 49.000</span>
+                  <span className="text-2xl sm:text-3xl font-black text-slate-900">Rp 49.000</span>
                   <span className="text-xs text-slate-500 font-semibold"> / bulan</span>
                 </div>
 
@@ -823,8 +825,8 @@ function SettingsContent() {
               </Card>
 
               {/* Pro Plan Card */}
-              <Card className="p-6 border-orange-300 bg-gradient-to-br from-orange-50/50 via-white to-amber-50/30 relative shadow-md">
-                <div className="absolute -top-3 right-6">
+              <Card className="p-4 sm:p-6 border-orange-300 bg-gradient-to-br from-orange-50/50 via-white to-amber-50/30 relative shadow-md">
+                <div className="absolute -top-3 right-4 sm:right-6">
                   <Badge variant="pro">LIFETIME DEAL</Badge>
                 </div>
 
@@ -840,7 +842,7 @@ function SettingsContent() {
                 </div>
 
                 <div className="mt-4">
-                  <span className="text-3xl font-black text-orange-600">Rp 99.000</span>
+                  <span className="text-2xl sm:text-3xl font-black text-orange-600">Rp 99.000</span>
                   <span className="text-xs text-orange-900/70 font-bold"> / sekali bayar</span>
                 </div>
 
@@ -878,7 +880,7 @@ function SettingsContent() {
                         variant="primary"
                         isLoading={isUpgrading}
                         onClick={() => handleUpgradePro('midtrans')}
-                        className="w-full"
+                        className="w-full min-h-[44px]"
                       >
                         Upgrade via Midtrans (QRIS / VA / CC)
                       </Button>
@@ -886,7 +888,7 @@ function SettingsContent() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleUpgradePro('manual_transfer')}
-                        className="w-full text-xs"
+                        className="w-full text-xs min-h-[40px]"
                       >
                         Transfer Bank Manual (BCA)
                       </Button>

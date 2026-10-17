@@ -131,18 +131,18 @@ export default function LaporanPage() {
   const netCashflow = totalIncome - totalExpense;
 
   return (
-    <div className="flex-1 pb-16">
+    <div className="flex-1 pb-8">
       <DashboardHeader
         title="Laporan & Ekspor Finansial"
         subtitle="Analisis mendalam arus kas dan unduh berkas laporan resmi PDF atau Excel."
       />
 
-      <main className="p-6 max-w-7xl mx-auto space-y-6">
+      <main className="p-3.5 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6 min-w-0">
         {/* Date Filter & Export Action Bar */}
-        <Card className="p-5">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <div>
+        <Card className="p-4 sm:p-5 min-w-0">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-3.5 sm:gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+              <div className="flex-1">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                   Mulai Tanggal
                 </label>
@@ -150,10 +150,10 @@ export default function LaporanPage() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-orange-500"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-orange-500 bg-white"
                 />
               </div>
-              <div>
+              <div className="flex-1">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                   Sampai Tanggal
                 </label>
@@ -161,19 +161,20 @@ export default function LaporanPage() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-orange-500"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-orange-500 bg-white"
                 />
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-0 border-slate-100">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handleExport('pdf')}
                 disabled={isExporting}
+                className="flex-1 sm:flex-initial text-xs font-bold"
               >
-                <FileText className="w-4 h-4 mr-1.5 text-red-500" />
+                <FileText className="w-3.5 h-3.5 mr-1.5 text-red-500" />
                 Unduh PDF
               </Button>
               <Button
@@ -181,8 +182,9 @@ export default function LaporanPage() {
                 size="sm"
                 onClick={() => handleExport('xlsx')}
                 disabled={isExporting}
+                className="flex-1 sm:flex-initial text-xs font-bold"
               >
-                <FileSpreadsheet className="w-4 h-4 mr-1.5 text-emerald-600" />
+                <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
                 Unduh XLSX
               </Button>
             </div>
@@ -197,42 +199,42 @@ export default function LaporanPage() {
         </Card>
 
         {/* Financial Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="p-5">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
+          <Card className="p-4 sm:p-5 min-w-0">
+            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">
               Total Pemasukan
             </span>
-            <div className="mt-2 text-2xl font-extrabold text-emerald-600 flex items-center gap-1.5">
-              <TrendingUp className="w-5 h-5 text-emerald-500" />
-              {formatRupiah(totalIncome)}
+            <div className="mt-2 text-lg sm:text-2xl font-black text-emerald-600 flex items-center gap-1.5 truncate">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 shrink-0" />
+              <span className="truncate">{formatRupiah(totalIncome)}</span>
             </div>
-            <p className="mt-1 text-xs text-slate-400">Periode terpilih</p>
+            <p className="mt-1 text-[11px] sm:text-xs text-slate-400">Periode terpilih</p>
           </Card>
 
-          <Card className="p-5">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          <Card className="p-4 sm:p-5 min-w-0">
+            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">
               Total Pengeluaran
             </span>
-            <div className="mt-2 text-2xl font-extrabold text-red-600 flex items-center gap-1.5">
-              <TrendingDown className="w-5 h-5 text-red-500" />
-              {formatRupiah(totalExpense)}
+            <div className="mt-2 text-lg sm:text-2xl font-black text-red-600 flex items-center gap-1.5 truncate">
+              <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 shrink-0" />
+              <span className="truncate">{formatRupiah(totalExpense)}</span>
             </div>
-            <p className="mt-1 text-xs text-slate-400">Periode terpilih</p>
+            <p className="mt-1 text-[11px] sm:text-xs text-slate-400">Periode terpilih</p>
           </Card>
 
-          <Card className="p-5">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          <Card className="p-4 sm:p-5 min-w-0">
+            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">
               Net Cashflow
             </span>
             <div
-              className={`mt-2 text-2xl font-extrabold flex items-center gap-1.5 ${
+              className={`mt-2 text-lg sm:text-2xl font-black flex items-center gap-1.5 truncate ${
                 netCashflow >= 0 ? 'text-slate-900' : 'text-red-600'
               }`}
             >
-              <Wallet className="w-5 h-5 text-orange-500" />
-              {formatRupiah(netCashflow)}
+              <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 shrink-0" />
+              <span className="truncate">{formatRupiah(netCashflow)}</span>
             </div>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-[11px] sm:text-xs text-slate-400 truncate">
               {netCashflow >= 0 ? 'Surplus keuangan sehat' : 'Pengeluaran melebihi pemasukan'}
             </p>
           </Card>

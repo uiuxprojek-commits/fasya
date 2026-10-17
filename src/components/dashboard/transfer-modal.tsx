@@ -158,11 +158,11 @@ export function TransferModal({
           <p className="text-xs text-red-500 font-semibold">{errorMessage}</p>
         )}
 
-        <div className="pt-2 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+        <div className="pt-3 flex flex-col-reverse sm:flex-row justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading} className="w-full sm:w-auto min-h-[42px]">
             Batal
           </Button>
-          <Button type="submit" variant="primary" isLoading={isLoading}>
+          <Button type="submit" variant="primary" isLoading={isLoading} className="w-full sm:w-auto min-h-[42px]">
             <ArrowRightLeft className="w-4 h-4 mr-1.5" />
             Kirim Transfer
           </Button>

@@ -92,7 +92,7 @@ export default function AdminPaymentsPage() {
   };
 
   return (
-    <div className="flex-1 p-6 max-w-7xl mx-auto space-y-6">
+    <div className="flex-1 p-3.5 sm:p-6 max-w-7xl mx-auto space-y-6">
       <div>
         <h1 className="text-lg font-black text-white">Verifikasi & Transaksi Pembayaran</h1>
         <p className="text-xs text-slate-400">

@@ -50,7 +50,7 @@ export default function AdminOverviewPage() {
         </div>
       </header>
 
-      <main className="p-6 max-w-7xl mx-auto space-y-6">
+      <main className="p-3.5 sm:p-6 max-w-7xl mx-auto space-y-6">
         {/* 4 Core Admin Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">

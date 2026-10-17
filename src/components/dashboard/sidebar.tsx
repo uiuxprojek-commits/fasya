@@ -45,7 +45,7 @@ export function DashboardSidebar({
   const isAdmin = userRole === 'admin' || userRole === 'superadmin';
 
   return (
-    <aside className="w-64 border-r border-slate-200/80 bg-white flex flex-col shrink-0 min-h-screen">
+    <aside className="hidden md:flex w-60 lg:w-64 border-r border-slate-200/80 bg-white flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
       {/* Brand Header */}
       <div className="p-5 border-b border-slate-100 flex items-center justify-between">
         <Link href="/dashboard" className="flex items-center gap-2.5">

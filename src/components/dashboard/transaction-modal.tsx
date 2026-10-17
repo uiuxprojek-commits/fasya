@@ -108,7 +108,7 @@ export function TransactionModal({
           <button
             type="button"
             onClick={() => setType('expense')}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all min-h-[44px] ${
               type === 'expense'
                 ? 'bg-red-500 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -120,7 +120,7 @@ export function TransactionModal({
           <button
             type="button"
             onClick={() => setType('income')}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all min-h-[44px] ${
               type === 'income'
                 ? 'bg-emerald-500 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -205,11 +205,11 @@ export function TransactionModal({
           <p className="text-xs text-red-500 font-semibold">{errorMessage}</p>
         )}
 
-        <div className="pt-2 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+        <div className="pt-3 flex flex-col-reverse sm:flex-row justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading} className="w-full sm:w-auto min-h-[42px]">
             Batal
           </Button>
-          <Button type="submit" variant="primary" isLoading={isLoading}>
+          <Button type="submit" variant="primary" isLoading={isLoading} className="w-full sm:w-auto min-h-[42px]">
             Simpan Transaksi
           </Button>
         </div>

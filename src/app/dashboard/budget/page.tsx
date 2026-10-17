@@ -128,17 +128,17 @@ export default function BudgetPage() {
   const totalRemaining = Math.max(totalBudget - totalSpent, 0);
 
   return (
-    <div className="flex-1 pb-16">
+    <div className="flex-1 pb-8">
       <DashboardHeader
         title="Manajemen Budget Bulanan"
         subtitle="Kendalikan pengeluaranmu per kategori dengan sistem peringatan otomatis 80% dan 100%."
       />
 
-      <main className="p-6 max-w-7xl mx-auto space-y-6">
+      <main className="p-3.5 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6 min-w-0">
         {fetchError && (
-          <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center justify-between">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <span>{fetchError}</span>
-            <Button size="sm" variant="outline" onClick={fetchBudgetsAndCategories}>
+            <Button size="sm" variant="outline" onClick={fetchBudgetsAndCategories} className="shrink-0">
               <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
               Coba Lagi
             </Button>
@@ -146,25 +146,25 @@ export default function BudgetPage() {
         )}
 
         {/* Overview Budget Card */}
-        <Card className="p-6 bg-gradient-to-br from-white to-slate-50">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <Card className="p-4 sm:p-6 bg-gradient-to-br from-white to-slate-50 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">
                 Total Alokasi Budget Bulan Ini
               </span>
-              <div className="mt-1 text-2xl font-extrabold text-slate-900">
+              <div className="mt-1 text-xl sm:text-2xl font-black text-slate-900 truncate">
                 {formatRupiah(totalBudget)}
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <span className="text-xs text-slate-500 font-medium block">Sisa Anggaran:</span>
-                <span className="text-base font-extrabold text-emerald-600">
+            <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 pt-2 sm:pt-0 border-t sm:border-0 border-slate-100">
+              <div className="text-left sm:text-right">
+                <span className="text-[11px] sm:text-xs text-slate-500 font-medium block">Sisa Anggaran:</span>
+                <span className="text-sm sm:text-base font-extrabold text-emerald-600 truncate block">
                   {formatRupiah(totalRemaining)}
                 </span>
               </div>
-              <Button size="sm" onClick={() => setIsModalOpen(true)}>
-                <Plus className="w-4 h-4 mr-1.5" />
+              <Button size="sm" onClick={() => setIsModalOpen(true)} className="text-xs font-bold shrink-0">
+                <Plus className="w-4 h-4 mr-1 sm:mr-1.5" />
                 Tambah Budget
               </Button>
             </div>

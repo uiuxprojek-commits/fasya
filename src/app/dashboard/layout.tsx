@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
+import { DashboardClientWrapper } from '@/components/dashboard/client-wrapper';
 import { getUserRole } from '@/lib/auth/roles';
 
 export const dynamic = 'force-dynamic';
@@ -41,17 +42,25 @@ export default async function DashboardLayout({
     }
   }
 
+  const userName = profile?.full_name || user?.email?.split('@')[0] || 'Pengguna TataDana';
+  const userEmail = profile?.email || user?.email || 'user@tatadana.id';
+
   return (
     <div className="min-h-screen flex bg-[#FBFBFD]">
       <DashboardSidebar
         userRole={userRole}
         planCode={planCode}
-        userName={profile?.full_name || user?.email?.split('@')[0] || 'Pengguna TataDana'}
-        userEmail={profile?.email || user?.email || 'user@tatadana.id'}
+        userName={userName}
+        userEmail={userEmail}
       />
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <DashboardClientWrapper
+        userRole={userRole}
+        planCode={planCode}
+        userName={userName}
+        userEmail={userEmail}
+      >
         {children}
-      </div>
+      </DashboardClientWrapper>
     </div>
   );
 }

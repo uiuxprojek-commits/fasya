@@ -98,49 +98,50 @@ export default function WalletPage() {
   const totalBalance = wallets.reduce((acc, w) => acc + Number(w.balance), 0);
 
   return (
-    <div className="flex-1 pb-16">
+    <div className="flex-1 pb-8">
       <DashboardHeader
         title="Dompet & Rekening Keuangan"
         subtitle="Kelola rekening bank, saldo tunai, dan e-wallet kamu dalam satu ekosistem terpadu."
       />
 
-      <main className="p-6 max-w-7xl mx-auto space-y-6">
+      <main className="p-3.5 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6 min-w-0">
         {/* Total Assets Summary */}
-        <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-slate-950/10">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+        <div className="p-4 sm:p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-slate-950/10 min-w-0">
+          <div className="min-w-0">
+            <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
               Total Kekayaan Bersih (Net Worth)
             </span>
-            <div className="text-3xl font-black mt-1 tracking-tight text-white">
+            <div className="text-2xl sm:text-3xl font-black mt-1 tracking-tight text-white truncate">
               {formatRupiah(totalBalance)}
             </div>
             <p className="text-xs text-slate-400 mt-1">
               Tersebar di {wallets.length} dompet dan rekening aktif
             </p>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-2.5">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsTransferModalOpen(true)}
-              className="bg-slate-800/80 border-slate-700 text-white hover:bg-slate-700"
+              className="bg-slate-800/80 border-slate-700 text-white hover:bg-slate-700 text-xs flex-1 sm:flex-initial"
             >
-              <ArrowRightLeft className="w-4 h-4 mr-1.5" />
+              <ArrowRightLeft className="w-3.5 h-3.5 mr-1.5" />
               Transfer Antar Dompet
             </Button>
             <Button
               size="sm"
               variant="primary"
               onClick={() => setIsNewWalletModalOpen(true)}
+              className="text-xs font-bold flex-1 sm:flex-initial"
             >
-              <Plus className="w-4 h-4 mr-1.5" />
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
               Tambah Dompet
             </Button>
           </div>
         </div>
 
         {/* Wallets Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
           {wallets.map((wallet) => (
             <Card key={wallet.id} className="p-5 flex flex-col justify-between">
               <div>

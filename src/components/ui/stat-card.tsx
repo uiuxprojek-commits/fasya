@@ -61,22 +61,25 @@ export function StatCard({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs hover:shadow-md transition-all duration-200">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs hover:shadow-md transition-all duration-200 min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 truncate">
           {title}
         </span>
-        <div className={cn('flex items-center justify-center w-10 h-10 rounded-xl', current.iconBg)}>
-          <IconComponent className="w-5 h-5" />
+        <div className={cn('flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl shrink-0', current.iconBg)}>
+          <IconComponent className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
       </div>
 
-      <div className="mt-3">
-        <div className="text-2xl font-extrabold tracking-tight text-slate-900">
+      <div className="mt-2.5 sm:mt-3 min-w-0">
+        <div
+          title={formatRupiah(amount)}
+          className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 truncate"
+        >
           {formatRupiah(amount)}
         </div>
         {subtitle && (
-          <p className="mt-1 text-xs text-slate-500 font-medium">
+          <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-xs text-slate-500 font-medium truncate">
             {subtitle}
           </p>
         )}

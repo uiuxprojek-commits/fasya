@@ -75,9 +75,9 @@ export function DashboardCharts({
   const safeDailyData = dailyData;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
       {/* 1. Bar Chart: Pemasukan vs Pengeluaran 6 Bulan */}
-      <Card className="lg:col-span-2">
+      <Card className="lg:col-span-2 min-w-0">
         <CardHeader>
           <CardTitle>Arus Kas 6 Bulan Terakhir</CardTitle>
           <CardDescription>
@@ -85,7 +85,7 @@ export function DashboardCharts({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-72 w-full">
+          <div className="h-72 w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={safeMonthlyData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -125,7 +125,7 @@ export function DashboardCharts({
       </Card>
 
       {/* 2. Pie Chart: Pengeluaran per Kategori */}
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle>Proporsi Kategori Pengeluaran</CardTitle>
           <CardDescription>
@@ -176,7 +176,7 @@ export function DashboardCharts({
       </Card>
 
       {/* 3. Line Chart: Tren Pengeluaran Harian */}
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle>Pengeluaran Harian (7 Hari)</CardTitle>
           <CardDescription>
