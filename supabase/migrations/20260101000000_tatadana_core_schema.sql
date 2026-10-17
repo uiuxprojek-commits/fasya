@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS public.telegram_accounts (
     telegram_username TEXT,
     first_name TEXT,
     last_name TEXT,
+    notifications_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     linked_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     CONSTRAINT unique_user_telegram_account UNIQUE (user_id),

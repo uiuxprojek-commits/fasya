@@ -15,12 +15,19 @@ export async function POST() {
       return NextResponse.json({ error: 'Sesi login tidak valid' }, { status: 401 });
     }
 
-    // Generate random 6-character alphanumeric code, e.g. TD-9281
-    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    // Clean up old unused codes for this user
+    await supabase
+      .from('telegram_link_codes')
+      .delete()
+      .eq('user_id', user.id)
+      .is('used_at', null);
+
+    // Generate random 6-digit code, e.g. TD-839201
+    const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const code = `TD-${randomDigits}`;
 
-    // Code expires in 15 minutes
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    // Code expires in exactly 10 minutes
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
     const { data, error } = await supabase
       .from('telegram_link_codes')
@@ -36,11 +43,14 @@ export async function POST() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'TataDanaApp2026Bot';
+
     return NextResponse.json({
       success: true,
       code,
       expiresAt,
-      botUsername: process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'TataDanaBot',
+      botUsername,
+      directUrl: `https://t.me/${botUsername}?start=${code}`,
     });
   } catch (err) {
     console.error('[Link Code API] Error:', err);

@@ -4,7 +4,8 @@ import { handleTelegramUpdate } from '@/lib/telegram/handler';
 export async function POST(request: NextRequest) {
   try {
     // 1. Verify Telegram secret token header if configured
-    const configuredSecret = process.env.TELEGRAM_BOT_SECRET_TOKEN;
+    const configuredSecret =
+      process.env.TELEGRAM_BOT_SECRET_TOKEN || process.env.TELEGRAM_WEBHOOK_SECRET;
     if (configuredSecret && configuredSecret.trim() !== '') {
       const headerSecret = request.headers.get('x-telegram-bot-api-secret-token');
       if (headerSecret !== configuredSecret) {

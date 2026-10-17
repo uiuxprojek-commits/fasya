@@ -110,6 +110,7 @@ export interface TelegramAccount {
   telegram_username?: string | null;
   first_name?: string | null;
   last_name?: string | null;
+  notifications_enabled?: boolean;
   is_active: boolean;
   linked_at: string;
 }

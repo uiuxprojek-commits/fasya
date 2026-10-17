@@ -20,8 +20,10 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
+  Unlink,
+  ShieldCheck,
 } from 'lucide-react';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDateWIB } from '@/lib/utils';
 
 function SettingsContent() {
   const searchParams = useSearchParams();
@@ -46,9 +48,21 @@ function SettingsContent() {
   // Telegram Linking State
   const [linkCode, setLinkCode] = React.useState('');
   const [codeExpiresAt, setCodeExpiresAt] = React.useState('');
+  const [directBotUrl, setDirectBotUrl] = React.useState('');
   const [isGeneratingCode, setIsGeneratingCode] = React.useState(false);
   const [isCopied, setIsCopied] = React.useState(false);
   const [isTelegramConnected, setIsTelegramConnected] = React.useState(false);
+  const [telegramAccount, setTelegramAccount] = React.useState<{
+    telegram_user_id: number;
+    telegram_username?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    linked_at: string;
+    notifications_enabled: boolean;
+  } | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
+  const [isTogglingNotifications, setIsTogglingNotifications] = React.useState(false);
+  const [isDisconnecting, setIsDisconnecting] = React.useState(false);
 
   // Reminder State
   const [morningReminder, setMorningReminder] = React.useState(true);
@@ -61,16 +75,18 @@ function SettingsContent() {
   const [planCode, setPlanCode] = React.useState<'starter' | 'pro'>('starter');
   const [isUpgrading, setIsUpgrading] = React.useState(false);
 
-  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'TataDanaBot';
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'TataDanaApp2026Bot';
 
   const loadProfileAndCategories = React.useCallback(async () => {
     try {
-      const [profileRes, catRes] = await Promise.all([
+      const [profileRes, catRes, tgRes] = await Promise.all([
         fetch('/api/profile'),
         fetch('/api/categories'),
+        fetch('/api/telegram/status'),
       ]);
       const profileData = await profileRes.json();
       const catData = await catRes.json();
+      const tgData = await tgRes.json();
 
       if (profileData.profile) {
         setFullName(profileData.profile.full_name || '');
@@ -78,6 +94,14 @@ function SettingsContent() {
         setCurrency(profileData.profile.currency || 'IDR');
       }
       setCategories(catData.categories || []);
+
+      if (tgData) {
+        setIsTelegramConnected(Boolean(tgData.connected));
+        setTelegramAccount(tgData.account || null);
+        if (tgData.account) {
+          setNotificationsEnabled(tgData.account.notifications_enabled !== false);
+        }
+      }
     } catch (err) {
       console.error('Error loading settings data:', err);
     }
@@ -138,11 +162,55 @@ function SettingsContent() {
       if (data.code) {
         setLinkCode(data.code);
         setCodeExpiresAt(data.expiresAt);
+        setDirectBotUrl(data.directUrl || `https://t.me/${botUsername}?start=${data.code}`);
       }
     } catch (err) {
       console.error('Failed to generate link code:', err);
     } finally {
       setIsGeneratingCode(false);
+    }
+  };
+
+  const handleToggleNotifications = async () => {
+    setIsTogglingNotifications(true);
+    try {
+      const nextState = !notificationsEnabled;
+      const res = await fetch('/api/telegram/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: nextState }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal mengubah notifikasi');
+      setNotificationsEnabled(nextState);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal mengubah preferensi notifikasi');
+    } finally {
+      setIsTogglingNotifications(false);
+    }
+  };
+
+  const handleDisconnectTelegram = async () => {
+    if (
+      !confirm(
+        'Apakah Anda yakin ingin memutuskan integrasi Telegram? Bot tidak akan dapat mengirim notifikasi atau menerima input transaksi hingga Anda menghubungkannya kembali.'
+      )
+    ) {
+      return;
+    }
+    setIsDisconnecting(true);
+    try {
+      const res = await fetch('/api/telegram/disconnect', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memutuskan Telegram');
+      setIsTelegramConnected(false);
+      setTelegramAccount(null);
+      setLinkCode('');
+      setDirectBotUrl('');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal memutuskan integrasi Telegram');
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
@@ -301,97 +369,229 @@ function SettingsContent() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
-                    <CardTitle>Hubungkan Telegram Bot</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <Send className="w-5 h-5 text-sky-500" />
+                      Integrasi Telegram Bot (TataDana Assistant)
+                    </CardTitle>
                     <CardDescription>
-                      Catat transaksi semudah chat langsung ke akun bot TataDana.
+                      Pantau saldo, cek limit anggaran, dan catat pengeluaran semudah mengirim pesan di Telegram.
                     </CardDescription>
                   </div>
-                  <Badge variant={isTelegramConnected ? 'success' : 'warning'}>
-                    {isTelegramConnected ? 'TERHUBUNG' : 'BELUM TERHUBUNG'}
+                  <Badge variant={isTelegramConnected ? 'success' : 'warning'} className="self-start sm:self-auto">
+                    {isTelegramConnected ? (
+                      <span className="flex items-center gap-1.5 font-bold">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> TERHUBUNG
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5 font-bold">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> BELUM TERHUBUNG
+                      </span>
+                    )}
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="p-4 rounded-xl bg-sky-50/70 border border-sky-100 flex items-start gap-3">
-                  <Send className="w-5 h-5 text-sky-500 shrink-0 mt-0.5" />
+              <CardContent className="space-y-6">
+                {/* Official Bot Info Banner */}
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-sky-50/90 to-indigo-50/70 border border-sky-100 flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Send className="w-5 h-5" />
+                  </div>
                   <div className="text-xs text-sky-950 space-y-1">
-                    <p className="font-bold">Nama Bot Resmi: @{botUsername}</p>
-                    <p className="text-sky-800">
-                      Seluruh transaksi dipetakan ke akun ini secara aman melalui kode verifikasi sekali pakai. Nomor HP Anda tidak akan terekspos.
+                    <p className="font-bold text-sm">
+                      Bot Resmi: <a href={`https://t.me/${botUsername}`} target="_blank" rel="noreferrer" className="text-sky-600 underline font-black">@{botUsername}</a>
+                    </p>
+                    <p className="text-sky-800 leading-relaxed">
+                      Akun TataDana Anda dilindungi oleh sistem token verifikasi sekali pakai berdurasi 10 menit. Nomor telepon Anda tidak akan pernah terekspos ke publik.
                     </p>
                   </div>
                 </div>
 
-                {/* Step-by-Step Instructions */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Langkah Menghubungkan:
-                  </h4>
-                  <ol className="list-decimal list-inside space-y-3 text-xs text-slate-700 font-medium">
-                    <li>
-                      Buka aplikasi Telegram dan cari bot{' '}
-                      <a
-                        href={`https://t.me/${botUsername}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-orange-600 font-bold underline inline-flex items-center gap-0.5"
-                      >
-                        @{botUsername} <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </li>
-                    <li>Klik tombol di bawah untuk membuat kode tautan sekali pakai Anda:</li>
-                  </ol>
-
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                        Kode Tautan Anda (Berlaku 15 Menit):
-                      </span>
-                      <div className="text-2xl font-black text-slate-900 font-mono tracking-widest mt-0.5">
-                        {linkCode || '------'}
+                {/* State: CONNECTED */}
+                {isTelegramConnected && telegramAccount ? (
+                  <div className="space-y-6">
+                    {/* Account Details Box */}
+                    <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-4">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600" /> Rincian Akun Terhubung
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <span className="text-slate-400 block font-medium">Username Telegram:</span>
+                          <span className="font-bold text-slate-800 text-sm">
+                            {telegramAccount.telegram_username ? `@${telegramAccount.telegram_username}` : '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block font-medium">ID Pengguna Telegram:</span>
+                          <span className="font-bold text-slate-800 text-sm font-mono">
+                            {telegramAccount.telegram_user_id}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block font-medium">Nama Telegram:</span>
+                          <span className="font-bold text-slate-800">
+                            {telegramAccount.first_name || '-'} {telegramAccount.last_name || ''}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block font-medium">Terhubung Sejak:</span>
+                          <span className="font-bold text-slate-800">
+                            {formatDateWIB(telegramAccount.linked_at, 'full')}
+                          </span>
+                        </div>
                       </div>
-                      {codeExpiresAt && (
-                        <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-1">
-                          <Clock className="w-3 h-3" /> Kedaluwarsa pada:{' '}
-                          {new Date(codeExpiresAt).toLocaleTimeString('id-ID')} WIB
-                        </span>
-                      )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      {linkCode && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => copyToClipboard(`/link ${linkCode}`)}
-                        >
-                          {isCopied ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-600 mr-1" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5 mr-1" />
-                          )}
-                          Salin Perintah
-                        </Button>
-                      )}
+                    {/* Notification Settings Toggle */}
+                    <div className="p-4 rounded-2xl border border-slate-200 bg-white flex items-center justify-between">
+                      <div className="space-y-1 pr-4">
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-4 h-4 text-orange-500" />
+                          <h4 className="text-xs font-bold text-slate-900">Notifikasi Transaksi Real-time</h4>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            notificationsEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {notificationsEnabled ? 'Aktif' : 'Nonaktif'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          Kirim notifikasi otomatis ke bot Telegram setiap kali ada transaksi baru yang dicatat di web TataDana.
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={notificationsEnabled}
+                          onChange={handleToggleNotifications}
+                          disabled={isTogglingNotifications}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                      </label>
+                    </div>
+
+                    {/* Supported Commands Info */}
+                    <div className="p-4 rounded-2xl bg-orange-50/60 border border-orange-100 space-y-2">
+                      <h4 className="text-xs font-bold text-orange-950">
+                        💡 Perintah Bot yang Tersedia:
+                      </h4>
+                      <p className="text-xs text-orange-800">
+                        Coba ketik <code className="font-bold font-mono">/saldo</code>, <code className="font-bold font-mono">/transaksi</code>, <code className="font-bold font-mono">/anggaran</code>, atau <code className="font-bold font-mono">/laporan</code> langsung di chat bot Anda.
+                      </p>
+                    </div>
+
+                    {/* Disconnect Action */}
+                    <div className="pt-2 flex justify-end">
                       <Button
-                        variant="primary"
+                        variant="outline"
                         size="sm"
-                        isLoading={isGeneratingCode}
-                        onClick={handleGenerateLinkCode}
+                        onClick={handleDisconnectTelegram}
+                        isLoading={isDisconnecting}
+                        className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
                       >
-                        {linkCode ? 'Buat Kode Baru' : 'Generate Kode Tautan'}
+                        <Unlink className="w-3.5 h-3.5 mr-1.5" />
+                        Putuskan Koneksi Telegram
                       </Button>
                     </div>
                   </div>
+                ) : (
+                  /* State: NOT CONNECTED */
+                  <div className="space-y-5">
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                        Cara Menghubungkan Akun:
+                      </h4>
+                      <ol className="list-decimal list-inside space-y-2.5 text-xs text-slate-700 font-medium leading-relaxed">
+                        <li>
+                          Klik tombol <strong>&apos;Generate Kode Tautan&apos;</strong> di bawah ini untuk membuat kode verifikasi unik berdurasi 10 menit.
+                        </li>
+                        <li>
+                          Buka bot Telegram{' '}
+                          <a
+                            href={`https://t.me/${botUsername}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-orange-600 font-bold underline inline-flex items-center gap-0.5"
+                          >
+                            @{botUsername} <ExternalLink className="w-3 h-3" />
+                          </a>{' '}
+                          lalu kirim perintah verifikasi dengan kode Anda.
+                        </li>
+                        <li>
+                          Akun Anda akan langsung terhubung secara otomatis dan siap digunakan!
+                        </li>
+                      </ol>
 
-                  {linkCode && (
-                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-800">
-                      💡 Kirim pesan berikut ke bot Telegram: <code className="font-bold font-mono">/link {linkCode}</code>
+                      {/* Code Generator & Action Card */}
+                      <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Kode Tautan Sekali Pakai (Berlaku 10 Menit):
+                          </span>
+                          <div className="text-3xl font-black text-slate-900 font-mono tracking-widest mt-1">
+                            {linkCode || '------'}
+                          </div>
+                          {codeExpiresAt && (
+                            <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-1 font-medium">
+                              <Clock className="w-3.5 h-3.5 text-orange-500" /> Kedaluwarsa pada:{' '}
+                              {new Date(codeExpiresAt).toLocaleTimeString('id-ID')} WIB
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          {linkCode && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => copyToClipboard(`/start ${linkCode}`)}
+                              >
+                                {isCopied ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-600 mr-1" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5 mr-1" />
+                                )}
+                                Salin /start {linkCode}
+                              </Button>
+
+                              <a
+                                href={directBotUrl || `https://t.me/${botUsername}?start=${linkCode}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold bg-sky-500 text-white hover:bg-sky-600 transition-colors shadow-xs"
+                              >
+                                <Send className="w-3.5 h-3.5 mr-1.5" />
+                                Buka Bot Otomatis
+                              </a>
+                            </>
+                          )}
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            isLoading={isGeneratingCode}
+                            onClick={handleGenerateLinkCode}
+                          >
+                            {linkCode ? 'Buat Kode Baru' : 'Hubungkan Telegram'}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {linkCode && (
+                        <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-800 space-y-1">
+                          <p className="font-bold flex items-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Kode Siap Digunakan!
+                          </p>
+                          <p>
+                            Buka Telegram dan kirim pesan: <code className="font-bold font-mono bg-white px-2 py-0.5 rounded border border-emerald-300">/start {linkCode}</code> atau klik tombol <strong>Buka Bot Otomatis</strong> di atas.
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

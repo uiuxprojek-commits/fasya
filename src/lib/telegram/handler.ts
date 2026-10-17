@@ -4,6 +4,11 @@ import {
   formatIncomeReply,
   formatTransferReply,
   formatHelpMessage,
+  formatConnectGuideMessage,
+  formatTransactionsList,
+  formatBudgetList,
+  formatReportReply,
+  formatStatusReply,
 } from './formatter';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
@@ -69,7 +74,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     });
 
     if (insertUpdateError && insertUpdateError.code === '23505') {
-      // 23505 = unique_violation, update already received
+      // 23505 = unique_violation, update already processed
       return { ok: true, duplicate: true };
     }
   } catch (err) {
@@ -82,16 +87,23 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     .select('*, profiles:user_id(*)')
     .eq('telegram_user_id', telegramUserId)
     .eq('is_active', true)
-    .single();
+    .maybeSingle();
 
-  // 3. Handle Linking Commands (/start <code> or /link <code>)
-  const isStartWithCode = text.startsWith('/start ') && text.length > 7;
-  const isLinkCommand = text.startsWith('/link ') && text.length > 6;
+  // Parse Command & Arguments
+  const parts = text.split(/\s+/);
+  const rawCommand = parts[0] || '';
+  const cleanCmd = rawCommand.split('@')[0].toLowerCase();
+  const args = parts.slice(1).join(' ').trim();
 
-  if (isStartWithCode || isLinkCommand) {
-    const code = (isStartWithCode ? text.replace('/start ', '') : text.replace('/link ', '')).trim().toUpperCase();
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'TataDanaApp2026Bot';
 
-    // Check code in telegram_link_codes
+  // 3. Handle Linking Flow (/start <code> or /link <code>)
+  const isStartWithCode = (cleanCmd === '/start' || cleanCmd === '/link') && args.length > 0;
+
+  if (isStartWithCode) {
+    const code = args.toUpperCase();
+
+    // Check code in telegram_link_codes (single-use, max 10 min expiry)
     const { data: linkCodeRecord, error: codeErr } = await supabase
       .from('telegram_link_codes')
       .select('*')
@@ -103,12 +115,12 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     if (codeErr || !linkCodeRecord) {
       await telegramBot.sendMessage({
         chat_id: chatId,
-        text: '❌ Kode tautan tidak valid atau sudah kedaluwarsa. Silakan buat kode baru melalui menu Settings di dashboard web TataDana.',
+        text: '❌ Kode tautan tidak valid atau sudah kedaluwarsa (berlaku 10 menit).\n\nSilakan generate kode baru melalui menu Pengaturan -> Telegram Bot di dashboard web TataDana.',
       });
       return { ok: true };
     }
 
-    // Link telegram account
+    // Link telegram account to user
     const { error: linkError } = await supabase.from('telegram_accounts').upsert(
       {
         user_id: linkCodeRecord.user_id,
@@ -116,6 +128,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
         telegram_username: message.from.username || null,
         first_name: message.from.first_name,
         last_name: message.from.last_name || null,
+        notifications_enabled: true,
         is_active: true,
         linked_at: new Date().toISOString(),
       },
@@ -131,7 +144,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       return { ok: false };
     }
 
-    // Mark link code as used
+    // Mark link code as used (single-use enforcement)
     await supabase
       .from('telegram_link_codes')
       .update({ used_at: new Date().toISOString() })
@@ -139,35 +152,15 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
 
     await telegramBot.sendMessage({
       chat_id: chatId,
-      text: `🎉 *Selamat, Akun TataDana Berhasil Terhubung!*\n\nHalo ${message.from.first_name}, sekarang kamu bisa mencatat pengeluaran dan pemasukan langsung dari chat ini.\n\nCoba ketik sekarang:\n👉 \`beli bakso 15rb\`\n👉 \`gajian 5jt\`\n\nKetik /bantuan untuk melihat daftar fitur lengkap.`,
+      text: `🎉 *Selamat, Akun TataDana Berhasil Terhubung!*\n\nHalo ${message.from.first_name}, sekarang Anda bisa memantau saldo, anggaran, tagihan, dan mencatat transaksi langsung dari chat ini.\n\nCoba ketik sekarang:\n👉 \`/saldo\` — Cek saldo seluruh dompet\n👉 \`/anggaran\` — Pantau limit anggaran\n👉 \`/laporan\` — Rekap keuangan bulan ini\n👉 \`beli kopi 28rb pakai gopay\`\n\nKetik /help untuk panduan perintah lengkap.`,
       parse_mode: 'Markdown',
     });
 
     return { ok: true, linked: true };
   }
 
-  // If user is not linked yet
-  if (!tgAccount) {
-    await telegramBot.sendMessage({
-      chat_id: chatId,
-      text: `👋 Halo ${message.from.first_name}!\n\nAkun Telegram kamu belum terhubung dengan akun TataDana.\n\n*Cara Menghubungkan:*
-1. Buka dashboard TataDana di web
-2. Masuk ke menu *Settings* -> *Telegram Bot*
-3. Salin kode tautan (contoh: \`TD-9821\`)
-4. Kirim ke bot ini: \`/link TD-9821\`
-
-Atau klik link langsung yang ada di dashboard!`,
-      parse_mode: 'Markdown',
-    });
-    return { ok: true };
-  }
-
-  const userId = tgAccount.user_id;
-
-  // 4. Handle System Commands
-  const lowerText = text.toLowerCase();
-
-  if (lowerText === '/bantuan' || lowerText === '/help' || lowerText === '/start') {
+  // 4. Handle Public / Unauthenticated Commands
+  if (cleanCmd === '/help' || cleanCmd === '/bantuan') {
     await telegramBot.sendMessage({
       chat_id: chatId,
       text: formatHelpMessage(),
@@ -176,7 +169,48 @@ Atau klik link langsung yang ada di dashboard!`,
     return { ok: true };
   }
 
-  if (lowerText === '/saldo') {
+  if (cleanCmd === '/hubungkan') {
+    await telegramBot.sendMessage({
+      chat_id: chatId,
+      text: formatConnectGuideMessage(botUsername),
+      parse_mode: 'Markdown',
+    });
+    return { ok: true };
+  }
+
+  if (cleanCmd === '/start' && !args) {
+    if (tgAccount) {
+      await telegramBot.sendMessage({
+        chat_id: chatId,
+        text: `👋 *Halo ${message.from.first_name}!*\n\nAkun Telegram Anda sudah terhubung dengan akun TataDana.\n\nKetik /help untuk melihat daftar perintah yang tersedia, atau langsung ketik transaksi Anda (contoh: \`kopi kenangan 28rb bayar pakai gopay\`).`,
+        parse_mode: 'Markdown',
+      });
+    } else {
+      await telegramBot.sendMessage({
+        chat_id: chatId,
+        text: `👋 *Selamat Datang di TataDana Assistant!*\n\nKelola keuangan pribadi Anda semudah mengirim chat di Telegram.\n\nAkun Telegram Anda saat ini *belum terhubung* dengan akun TataDana.\n\nKetik /hubungkan untuk melihat panduan mudah menghubungkan akun Anda!`,
+        parse_mode: 'Markdown',
+      });
+    }
+    return { ok: true };
+  }
+
+  // 5. Enforce Authentication for Financial Commands
+  if (!tgAccount) {
+    await telegramBot.sendMessage({
+      chat_id: chatId,
+      text: `🔒 *Akses Dibatasi*\n\nHalo ${message.from.first_name}! Akun Telegram kamu belum terhubung dengan akun TataDana.\n\nUntuk melindungi keamanan dan privasi data finansial, kamu harus menghubungkan akun terlebih dahulu.\n\nKetik /hubungkan untuk panduan koneksi.`,
+      parse_mode: 'Markdown',
+    });
+    return { ok: true };
+  }
+
+  const userId = tgAccount.user_id;
+
+  // 6. Authenticated User Financial Commands
+
+  // /saldo — Ringkasan saldo aktual
+  if (cleanCmd === '/saldo') {
     const { data: wallets } = await supabase
       .from('wallets')
       .select('name, balance, type')
@@ -187,7 +221,7 @@ Atau klik link langsung yang ada di dashboard!`,
     if (!wallets || wallets.length === 0) {
       await telegramBot.sendMessage({
         chat_id: chatId,
-        text: '👛 Kamu belum memiliki dompet aktif. Tambahkan dompet di dashboard web.',
+        text: '👛 Anda belum memiliki dompet aktif. Tambahkan dompet baru di dashboard web TataDana.',
       });
       return { ok: true };
     }
@@ -207,13 +241,175 @@ Atau klik link langsung yang ada di dashboard!`,
     return { ok: true };
   }
 
-  if (lowerText === '/hari_ini' || lowerText === '/hari ini') {
+  // /transaksi — 5 Transaksi terbaru
+  if (cleanCmd === '/transaksi') {
+    const { data: txList } = await supabase
+      .from('transactions')
+      .select('id, type, amount, date, notes, categories(name), wallets(name)')
+      .eq('user_id', userId)
+      .order('date', { ascending: false })
+      .limit(5);
+
+    const formattedTx = (txList || []).map((t) => {
+      const cat = t.categories as unknown as { name: string } | null;
+      const w = t.wallets as unknown as { name: string } | null;
+      return {
+        id: t.id,
+        type: t.type,
+        amount: Number(t.amount),
+        date: t.date,
+        notes: t.notes,
+        categoryName: cat?.name,
+        walletName: w?.name,
+      };
+    });
+
+    await telegramBot.sendMessage({
+      chat_id: chatId,
+      text: formatTransactionsList(formattedTx),
+      parse_mode: 'Markdown',
+    });
+    return { ok: true };
+  }
+
+  // /anggaran & /budget — Ringkasan anggaran bulan ini
+  if (cleanCmd === '/anggaran' || cleanCmd === '/budget') {
+    const currentMonth = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+    const firstDayOfMonth = `${currentMonth}-01T00:00:00.000Z`;
+
+    const { data: budgets } = await supabase
+      .from('budgets')
+      .select('monthly_amount, category_id, categories(name)')
+      .eq('user_id', userId)
+      .eq('month_year', currentMonth);
+
+    if (!budgets || budgets.length === 0) {
+      await telegramBot.sendMessage({
+        chat_id: chatId,
+        text: `📊 *Anggaran Bulanan (${currentMonth})*\n\nAnda belum menetapkan batas anggaran bulan ini. Tetapkan anggaran per kategori di dashboard web TataDana agar pengeluaran tetap terkontrol.`,
+      });
+      return { ok: true };
+    }
+
+    // Fetch this month's expenses to calculate spent per category
+    const { data: txs } = await supabase
+      .from('transactions')
+      .select('category_id, amount')
+      .eq('user_id', userId)
+      .eq('type', 'expense')
+      .gte('date', firstDayOfMonth);
+
+    const spentMap: Record<string, number> = {};
+    (txs || []).forEach((t) => {
+      if (t.category_id) {
+        spentMap[t.category_id] = (spentMap[t.category_id] || 0) + Number(t.amount);
+      }
+    });
+
+    const budgetItems = budgets.map((b) => {
+      const cat = b.categories as unknown as { name: string } | null;
+      return {
+        categoryName: cat?.name || 'Kategori',
+        monthlyAmount: Number(b.monthly_amount),
+        spentAmount: spentMap[b.category_id] || 0,
+      };
+    });
+
+    await telegramBot.sendMessage({
+      chat_id: chatId,
+      text: formatBudgetList(budgetItems, currentMonth),
+      parse_mode: 'Markdown',
+    });
+    return { ok: true };
+  }
+
+  // /tagihan — Daftar tagihan mendatang
+  if (cleanCmd === '/tagihan') {
+    await telegramBot.sendMessage({
+      chat_id: chatId,
+      text: `📋 *Daftar Tagihan Mendatang*\n\nSaat ini belum ada tagihan berkala aktif yang terdaftar. Anda dapat mengalokasikan pembayaran rutin (listrik, internet, sewa, asuransi) melalui fitur *Anggaran* (/anggaran) atau mencatatnya langsung saat pembayaran tiba di web TataDana.`,
+      parse_mode: 'Markdown',
+    });
+    return { ok: true };
+  }
+
+  // /laporan & /bulan_ini — Ringkasan pemasukan dan pengeluaran bulan ini
+  if (cleanCmd === '/laporan' || cleanCmd === '/bulan_ini' || cleanCmd === '/bulan ini') {
+    const now = new Date();
+    const currentMonth = now.toISOString().slice(0, 7);
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+    const { data: txs } = await supabase
+      .from('transactions')
+      .select('type, amount, category_id, categories(name)')
+      .eq('user_id', userId)
+      .gte('date', firstDayOfMonth);
+
+    let incomeTotal = 0;
+    let expenseTotal = 0;
+    const catSpent: Record<string, { name: string; amount: number }> = {};
+
+    (txs || []).forEach((t) => {
+      const amt = Number(t.amount);
+      if (t.type === 'income') {
+        incomeTotal += amt;
+      } else if (t.type === 'expense') {
+        expenseTotal += amt;
+        const cat = t.categories as unknown as { name: string } | null;
+        const catName = cat?.name || 'Lainnya';
+        if (!catSpent[catName]) {
+          catSpent[catName] = { name: catName, amount: 0 };
+        }
+        catSpent[catName].amount += amt;
+      }
+    });
+
+    const topCategories = Object.values(catSpent).sort((a, b) => b.amount - a.amount);
+
+    await telegramBot.sendMessage({
+      chat_id: chatId,
+      text: formatReportReply({
+        periodName: `Bulan ${currentMonth}`,
+        incomeTotal,
+        expenseTotal,
+        topCategories,
+      }),
+      parse_mode: 'Markdown',
+    });
+    return { ok: true };
+  }
+
+  // /status — Status koneksi Telegram
+  if (cleanCmd === '/status') {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', userId)
+      .single();
+
+    await telegramBot.sendMessage({
+      chat_id: chatId,
+      text: formatStatusReply({
+        fullName: profile?.full_name || message.from.first_name,
+        email: profile?.email || '-',
+        telegramUserId: telegramUserId,
+        telegramUsername: message.from.username,
+        notificationsEnabled: tgAccount.notifications_enabled !== false,
+        linkedAt: tgAccount.linked_at,
+      }),
+      parse_mode: 'Markdown',
+    });
+    return { ok: true };
+  }
+
+  // /hari_ini — Shortcut rekap hari ini
+  if (cleanCmd === '/hari_ini' || cleanCmd === '/hari') {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const { data: txs } = await supabase
       .from('transactions')
-      .select('type, amount, notes, categories(name)')
+      .select('type, amount')
       .eq('user_id', userId)
       .gte('date', today.toISOString());
 
@@ -235,7 +431,8 @@ Atau klik link langsung yang ada di dashboard!`,
     return { ok: true };
   }
 
-  if (lowerText === '/minggu_ini' || lowerText === '/minggu ini') {
+  // /minggu_ini — Shortcut rekap 7 hari
+  if (cleanCmd === '/minggu_ini') {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -262,58 +459,26 @@ Atau klik link langsung yang ada di dashboard!`,
     return { ok: true };
   }
 
-  if (lowerText === '/budget') {
-    const currentMonth = new Date().toISOString().slice(0, 7); // e.g. '2026-10'
-    const { data: budgets } = await supabase
-      .from('budgets')
-      .select('monthly_amount, categories(id, name, icon)')
-      .eq('user_id', userId)
-      .eq('month_year', currentMonth);
-
-    if (!budgets || budgets.length === 0) {
-      await telegramBot.sendMessage({
-        chat_id: chatId,
-        text: '📊 Kamu belum menyetel budget bulanan. Atur budget di menu Dashboard Web untuk memantau pengeluaran.',
-      });
-      return { ok: true };
-    }
-
-    let reply = `📊 *Status Budget Bulan Ini (${currentMonth})*\n\n`;
-    for (const b of budgets) {
-      const cat = b.categories as unknown as { id: string; name: string; icon: string } | null;
-      reply += `🏷️ ${cat?.name || 'Kategori'}: Limit *${formatRupiah(b.monthly_amount)}*\n`;
-    }
-
-    await telegramBot.sendMessage({
-      chat_id: chatId,
-      text: reply,
-      parse_mode: 'Markdown',
-    });
-    return { ok: true };
-  }
-
-  // 5. Handle Photo / Receipt OCR (Pro Feature)
+  // 7. Handle Photo / Receipt OCR (Pro Feature)
   if (message.photo && message.photo.length > 0) {
-    // Check subscription plan entitlement
     const { data: sub } = await supabase
       .from('user_subscriptions')
       .select('*, plan:subscription_plans(*)')
       .eq('user_id', userId)
       .eq('status', 'active')
-      .single();
+      .maybeSingle();
 
     const isPro = sub?.plan?.code === 'pro';
 
     if (!isPro) {
       await telegramBot.sendMessage({
         chat_id: chatId,
-        text: `📸 *Fitur Foto Struk AI Tersedia Khusus Pro*\n\nAkun kamu saat ini berada di paket *Starter*. Di paket TataDana Pro (Rp99.000 sekali bayar), kamu bisa:\n\n✨ Pindai struk belanja otomatis dengan AI OCR\n✨ Ekstrak rincian item, pajak & total belanja\n✨ Laporan lengkap & export PDF/Excel unlimited\n\nUpgrade sekarang di menu Dashboard Web kamu!`,
+        text: `📸 *Fitur Foto Struk AI Tersedia Khusus Pro*\n\nAkun Anda saat ini berada di paket *Starter*. Di paket TataDana Pro, Anda bisa:\n\n✨ Pindai struk belanja otomatis dengan AI Vision\n✨ Ekstrak rincian item, pajak & total belanja\n✨ Laporan lengkap & export tanpa batas\n\nUpgrade sekarang di menu Pengaturan web TataDana!`,
         parse_mode: 'Markdown',
       });
       return { ok: true };
     }
 
-    // Get highest resolution photo
     const bestPhoto = message.photo[message.photo.length - 1];
     const fileUrl = await telegramBot.getFile(bestPhoto.file_id);
 
@@ -335,7 +500,6 @@ Atau klik link langsung yang ada di dashboard!`,
 
     const { result: ocrResult } = await parseReceiptWithFailover(base64Img);
 
-    // Get default wallet
     const { data: defaultWallet } = await supabase
       .from('wallets')
       .select('id, name')
@@ -353,7 +517,6 @@ Atau klik link langsung yang ada di dashboard!`,
       return { ok: false };
     }
 
-    // Call atomic procedure
     const { data: recordRes, error: rpcErr } = await supabase.rpc('record_transaction_atomic', {
       p_user_id: userId,
       p_wallet_id: defaultWallet.id,
@@ -375,7 +538,6 @@ Atau klik link langsung yang ada di dashboard!`,
       return { ok: false };
     }
 
-    // Insert items into transaction_items
     if (ocrResult.items.length > 0 && recordRes?.transaction_id) {
       const itemsToInsert = ocrResult.items.map((item) => ({
         transaction_id: recordRes.transaction_id,
@@ -394,14 +556,14 @@ Atau klik link langsung yang ada di dashboard!`,
 
     await telegramBot.sendMessage({
       chat_id: chatId,
-      text: `🧾 *Struk Berhasil Tercatat!*\n\n🏪 Merchant: *${ocrResult.merchantName}*\n💰 Total: *${formatRupiah(ocrResult.totalAmount)}*\n👛 Dompet: ${defaultWallet.name}\n\n*Rincian Item:*${itemsSummary}\n\nSaldomu telah diperbarui secara otomatis.`,
+      text: `🧾 *Struk Berhasil Tercatat!*\n\n🏪 Toko: *${ocrResult.merchantName}*\n💰 Total: *${formatRupiah(ocrResult.totalAmount)}*\n👛 Dompet: ${defaultWallet.name}\n\n*Rincian Item:*${itemsSummary}\n\nSaldomu telah diperbarui secara otomatis.`,
       parse_mode: 'Markdown',
     });
 
     return { ok: true };
   }
 
-  // 6. Handle Voice Note (Speech-to-Text)
+  // 8. Handle Voice Note (Speech-to-Text)
   let voiceTranscript = '';
   if (message.voice) {
     await telegramBot.sendMessage({
@@ -418,7 +580,7 @@ Atau klik link langsung yang ada di dashboard!`,
     }
   }
 
-  // 7. Handle Natural Language Text Parsing
+  // 9. Handle Natural Language Text Parsing
   const inputToParse = voiceTranscript || text;
   if (!inputToParse) {
     return { ok: true };
@@ -429,7 +591,7 @@ Atau klik link langsung yang ada di dashboard!`,
   if (parsedTx.nominal <= 0 || parsedTx.confidence < 0.4) {
     await telegramBot.sendMessage({
       chat_id: chatId,
-      text: '🤔 Maaf, nominal transaksi belum terbaca dengan jelas.\n\nContoh yang bisa kamu kirim:\n• `beli kopi 25rb`\n• `gajian 5.5jt`\n• `isi bensin 50k pakai BCA`\n• `transfer 100rb dari BCA ke GoPay`',
+      text: '🤔 Maaf, rincian transaksi belum terbaca dengan jelas.\n\nContoh format yang bisa kamu kirim:\n• `beli bakso 25rb`\n• `gajian 5.5jt ke BCA`\n• `isi bensin 50k pakai GoPay`\n• `transfer 100rb dari BCA ke Mandiri`\n\nKetik /help untuk panduan lengkap.',
       parse_mode: 'Markdown',
     });
     return { ok: true };
@@ -445,12 +607,12 @@ Atau klik link langsung yang ada di dashboard!`,
   if (!userWallets || userWallets.length === 0) {
     await telegramBot.sendMessage({
       chat_id: chatId,
-      text: 'Kamu belum memiliki wallet aktif. Silakan buat wallet terlebih dahulu di dashboard web TataDana.',
+      text: 'Anda belum memiliki dompet aktif. Silakan tambahkan dompet terlebih dahulu di dashboard web TataDana.',
     });
     return { ok: true };
   }
 
-  // Match wallet from parsed text or use default
+  // Match wallet or use default
   let selectedWallet = userWallets.find((w) => w.is_default) || userWallets[0];
   if (parsedTx.wallet_nama) {
     const matched = userWallets.find((w) =>
@@ -474,7 +636,7 @@ Atau klik link langsung yang ada di dashboard!`,
     if (!toWallet || toWallet.id === selectedWallet.id) {
       await telegramBot.sendMessage({
         chat_id: chatId,
-        text: 'Untuk transfer, kamu membutuhkan minimal dua wallet aktif yang berbeda.',
+        text: 'Untuk transfer, Anda membutuhkan minimal dua dompet aktif yang berbeda.',
       });
       return { ok: true };
     }
@@ -569,7 +731,7 @@ Atau klik link langsung yang ada di dashboard!`,
         .eq('user_id', userId)
         .eq('category_id', matchedCategory.id)
         .eq('month_year', currentMonth)
-        .single();
+        .maybeSingle();
 
       if (budget) {
         budgetTotal = Number(budget.monthly_amount);

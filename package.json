@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx tests/currency-parser.test.ts && tsx tests/encryption.test.ts && tsx tests/telegram-formatter.test.ts && tsx tests/reports-export.test.ts"
+    "test": "tsx tests/currency-parser.test.ts && tsx tests/encryption.test.ts && tsx tests/telegram-formatter.test.ts && tsx tests/reports-export.test.ts && tsx tests/telegram-auth.test.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { sendTransactionNotification } from '@/lib/telegram/notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,6 +102,43 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    // Trigger Telegram notification asynchronously (non-blocking)
+    if (source === 'web') {
+      (async () => {
+        try {
+          let categoryName = '';
+          if (categoryId) {
+            const { data: cat } = await supabase
+              .from('categories')
+              .select('name')
+              .eq('id', categoryId)
+              .maybeSingle();
+            categoryName = cat?.name || '';
+          }
+          let walletName = '';
+          if (walletId) {
+            const { data: w } = await supabase
+              .from('wallets')
+              .select('name')
+              .eq('id', walletId)
+              .maybeSingle();
+            walletName = w?.name || '';
+          }
+          await sendTransactionNotification({
+            userId: user.id,
+            type,
+            amount,
+            categoryName,
+            walletName,
+            notes,
+            transactionId: data?.transaction_id,
+          });
+        } catch (notifyErr) {
+          console.warn('[Transaction] Telegram notify error:', notifyErr);
+        }
+      })();
     }
 
     return NextResponse.json({ success: true, data });
