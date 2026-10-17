@@ -47,8 +47,9 @@ export async function POST(request: Request) {
         const adminClient = createAdminClient();
         const { data: profile } = await adminClient
           .from('profiles')
-          .select('id, email')
+          .select('id, email, onboarding_completed')
           .ilike('email', cleanEmail)
+          .eq('onboarding_completed', true)
           .maybeSingle();
 
         if (profile) {
