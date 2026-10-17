@@ -61,6 +61,7 @@ export default function RegisterPage() {
   // Cooldown & Resend limit
   const [cooldown, setCooldown] = React.useState(0);
   const [attempts, setAttempts] = React.useState(0);
+  const [otpLength, setOtpLength] = React.useState<6 | 8>(8);
 
   // 1. Restore state from sessionStorage or URL query on mount
   React.useEffect(() => {
@@ -247,8 +248,8 @@ export default function RegisterPage() {
     setErrorMessage('');
     setSuccessMessage('');
 
-    if (code.length !== 6) {
-      setErrorMessage('Harap masukkan 6 digit kode OTP secara lengkap.');
+    if (code.length !== 6 && code.length !== 8) {
+      setErrorMessage(`Harap masukkan ${otpLength} digit kode OTP secara lengkap.`);
       return;
     }
 
@@ -583,21 +584,59 @@ export default function RegisterPage() {
                 <div className="p-3.5 rounded-xl bg-orange-50/70 border border-orange-100 text-xs text-orange-950 flex items-start gap-2.5">
                   <KeyRound className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
                   <div className="leading-relaxed">
-                    Kode 6 digit telah dikirim ke: <strong className="font-bold">{email}</strong>.
+                    Kode {otpLength} digit telah dikirim ke: <strong className="font-bold">{email}</strong>.
                     Berlaku selama 10 menit.
                   </div>
                 </div>
 
-                {/* 6-box OTP input with paste & keyboard nav */}
+                {/* Length Selector Toggle */}
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-slate-500 font-medium">Kotak kode OTP:</span>
+                  <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpLength(6);
+                        setOtpCode('');
+                      }}
+                      className={cn(
+                        'px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all cursor-pointer',
+                        otpLength === 6
+                          ? 'bg-white text-orange-600 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      )}
+                    >
+                      6 Digit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpLength(8);
+                        setOtpCode('');
+                      }}
+                      className={cn(
+                        'px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all cursor-pointer',
+                        otpLength === 8
+                          ? 'bg-white text-orange-600 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      )}
+                    >
+                      8 Digit
+                    </button>
+                  </div>
+                </div>
+
+                {/* OTP input with paste & keyboard nav */}
                 <div className="py-2">
                   <OtpInput
-                    length={6}
+                    length={otpLength}
                     value={otpCode}
                     onChange={(val) => {
                       setOtpCode(val);
                       if (errorMessage) setErrorMessage('');
                     }}
                     onComplete={(code) => handleVerifyOtp(code)}
+                    onAutoDetectLength={(detected) => setOtpLength(detected)}
                     disabled={isLoading}
                     hasError={Boolean(errorMessage)}
                     autoFocus
@@ -610,7 +649,7 @@ export default function RegisterPage() {
                   className="w-full min-h-[44px] font-bold"
                   isLoading={isLoading}
                   onClick={() => handleVerifyOtp()}
-                  disabled={otpCode.length !== 6 || isLoading}
+                  disabled={(otpCode.length !== 6 && otpCode.length !== 8) || isLoading}
                 >
                   Verifikasi & Lanjutkan
                   <ArrowRight className="w-4 h-4 ml-1.5" />
