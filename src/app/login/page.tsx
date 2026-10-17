@@ -7,26 +7,33 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createClient } from '@/lib/supabase/client';
-import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirectTo') || '/dashboard';
+  const initialEmail = searchParams.get('email') || '';
 
-  const [email, setEmail] = React.useState('');
+  const [email, setEmail] = React.useState(initialEmail);
   const [password, setPassword] = React.useState('');
+  const [showPassword, setShowPassword] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState('');
 
   React.useEffect(() => {
+    if (initialEmail && !email) {
+      setEmail(initialEmail);
+    }
     const errorParam = searchParams.get('error');
     if (errorParam === 'auth_callback_failed') {
       setErrorMessage('Autentikasi gagal atau sesi login telah kedaluwarsa. Silakan coba masuk kembali.');
     } else if (errorParam === 'unauthorized_admin') {
       setErrorMessage('Akses ditolak: Anda tidak memiliki wewenang administrator.');
+    } else if (errorParam === 'email_unverified' || errorParam === 'email_not_confirmed') {
+      setErrorMessage('Email Anda belum diverifikasi. Silakan selesaikan proses verifikasi OTP.');
     }
-  }, [searchParams]);
+  }, [searchParams, initialEmail]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,16 +135,26 @@ function LoginForm() {
               />
 
               <div className="space-y-1">
-                <Input
-                  label="Kata Sandi"
-                  type="password"
-                  placeholder="••••••••"
-                  leftIcon={<Lock className="w-4 h-4" />}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                />
+                <div className="relative">
+                  <Input
+                    label="Kata Sandi"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    leftIcon={<Lock className="w-4 h-4" />}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-8 text-slate-400 hover:text-slate-600 transition-colors"
+                    aria-label="Tampilkan kata sandi"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
                 <div className="text-right">
                   <Link
                     href="/forgot-password"

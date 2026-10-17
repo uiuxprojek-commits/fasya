@@ -52,6 +52,14 @@ export async function updateSession(request: NextRequest) {
       url.searchParams.set('redirectTo', pathname);
       return NextResponse.redirect(url);
     }
+
+    // Pastikan email terverifikasi sebelum mengizinkan akses dashboard
+    if (!user.email_confirmed_at && process.env.NODE_ENV === 'production') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      url.searchParams.set('error', 'email_unverified');
+      return NextResponse.redirect(url);
+    }
   }
 
   // Admin routes protection
