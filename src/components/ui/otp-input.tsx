@@ -8,18 +8,16 @@ export interface OtpInputProps {
   value: string;
   onChange: (value: string) => void;
   onComplete?: (value: string) => void;
-  onAutoDetectLength?: (detectedLength: 6 | 8) => void;
   disabled?: boolean;
   hasError?: boolean;
   autoFocus?: boolean;
 }
 
 export function OtpInput({
-  length = 6,
+  length = 8,
   value = '',
   onChange,
   onComplete,
-  onAutoDetectLength,
   disabled = false,
   hasError = false,
   autoFocus = true,
@@ -102,27 +100,14 @@ export function OtpInput({
   };
 
   const handlePasteString = (pasteText: string, startIndex = 0) => {
-    const rawDigits = pasteText.replace(/\D/g, '');
+    const rawDigits = pasteText.replace(/\D/g, '').slice(0, length);
     if (!rawDigits) return;
 
-    if (rawDigits.length === 8 && length !== 8 && onAutoDetectLength) {
-      onAutoDetectLength(8);
-      onChange(rawDigits);
-      if (onComplete) onComplete(rawDigits);
-      return;
-    } else if (rawDigits.length === 6 && length !== 6 && onAutoDetectLength) {
-      onAutoDetectLength(6);
-      onChange(rawDigits);
-      if (onComplete) onComplete(rawDigits);
-      return;
-    }
-
-    const onlyDigits = rawDigits.slice(0, length);
     const nextDigits = [...digits];
-    for (let i = 0; i < onlyDigits.length; i++) {
+    for (let i = 0; i < rawDigits.length; i++) {
       const targetIndex = startIndex + i;
       if (targetIndex < length) {
-        nextDigits[targetIndex] = onlyDigits[i];
+        nextDigits[targetIndex] = rawDigits[i];
       }
     }
 
@@ -130,7 +115,7 @@ export function OtpInput({
     onChange(nextValue);
 
     // Focus the box following the last inserted digit, or the last box
-    const nextFocusIndex = Math.min(startIndex + onlyDigits.length, length - 1);
+    const nextFocusIndex = Math.min(startIndex + rawDigits.length, length - 1);
     inputRefs.current[nextFocusIndex]?.focus();
     inputRefs.current[nextFocusIndex]?.select();
 
@@ -145,10 +130,8 @@ export function OtpInput({
     handlePasteString(pastedData, 0);
   };
 
-  const isWide = length > 6;
-
   return (
-    <div className={cn("flex items-center justify-center select-none", isWide ? "gap-1.5 sm:gap-2.5" : "gap-2 sm:gap-3")}>
+    <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 select-none">
       {Array.from({ length }).map((_, idx) => (
         <input
           key={idx}
@@ -168,17 +151,14 @@ export function OtpInput({
           disabled={disabled}
           aria-label={`Digit OTP ${idx + 1} dari ${length}`}
           className={cn(
-            isWide
-              ? 'w-8 h-12 sm:w-10.5 sm:h-14 text-lg sm:text-xl'
-              : 'w-10 h-13 sm:w-12 sm:h-14 text-xl sm:text-2xl',
-            'text-center font-mono font-black',
+            'w-8.5 h-12.5 sm:w-11 sm:h-14 text-center font-mono font-black text-lg sm:text-2xl',
             'rounded-xl border bg-white text-slate-900 shadow-xs transition-all outline-hidden',
             'focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:scale-[1.03]',
             'disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed',
             hasError
               ? 'border-red-400 bg-red-50/30 text-red-700 focus:border-red-500 focus:ring-red-500/20'
               : digits[idx]
-              ? 'border-orange-400 bg-orange-50/20'
+              ? 'border-orange-400 bg-orange-50/20 text-orange-950 font-bold'
               : 'border-slate-200 hover:border-slate-300'
           )}
         />

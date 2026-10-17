@@ -62,7 +62,6 @@ export default function RegisterPage() {
   // Cooldown & Resend limit
   const [cooldown, setCooldown] = React.useState(0);
   const [attempts, setAttempts] = React.useState(0);
-  const [otpLength, setOtpLength] = React.useState<6 | 8>(8);
 
   // 1. Restore state from sessionStorage or URL query on mount
   React.useEffect(() => {
@@ -198,7 +197,7 @@ export default function RegisterPage() {
       setAttempts(0);
       setOtpCode('');
       setStep(2);
-      setSuccessMessage(`Kode verifikasi 6 digit telah dikirim ke ${cleanEmail}`);
+      setSuccessMessage(`Kode verifikasi 8 digit telah dikirim ke ${cleanEmail}`);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : 'Gagal mengirim kode OTP. Silakan coba lagi.');
     } finally {
@@ -249,8 +248,8 @@ export default function RegisterPage() {
     setErrorMessage('');
     setSuccessMessage('');
 
-    if (code.length !== 6 && code.length !== 8) {
-      setErrorMessage(`Harap masukkan ${otpLength} digit kode OTP secara lengkap.`);
+    if (code.length !== 8) {
+      setErrorMessage('Harap masukkan 8 digit kode OTP secara lengkap.');
       return;
     }
 
@@ -478,7 +477,7 @@ export default function RegisterPage() {
             </CardTitle>
             <CardDescription>
               {step === 1 && 'Langkah 1 dari 3: Masukkan alamat email aktif Anda.'}
-              {step === 2 && 'Langkah 2 dari 3: Masukkan 6 digit kode OTP resmi dari email Anda.'}
+              {step === 2 && 'Langkah 2 dari 3: Masukkan 8 digit kode OTP resmi dari email Anda.'}
               {step === 3 && 'Langkah 3 dari 3: Buat kata sandi aman untuk masuk ke akun Anda.'}
             </CardDescription>
           </CardHeader>
@@ -524,7 +523,7 @@ export default function RegisterPage() {
                     setEmail(e.target.value);
                     if (errorMessage) setErrorMessage('');
                   }}
-                  helperText="Kode verifikasi 6 digit akan dikirimkan ke email ini."
+                  helperText="Kode verifikasi 8 digit akan dikirimkan ke email ini."
                   required
                   autoFocus
                   autoComplete="email"
@@ -585,59 +584,21 @@ export default function RegisterPage() {
                 <div className="p-3.5 rounded-xl bg-orange-50/70 border border-orange-100 text-xs text-orange-950 flex items-start gap-2.5">
                   <KeyRound className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
                   <div className="leading-relaxed">
-                    Kode {otpLength} digit telah dikirim ke: <strong className="font-bold">{email}</strong>.
+                    Kode 8 digit telah dikirim ke: <strong className="font-bold">{email}</strong>.
                     Berlaku selama 10 menit.
                   </div>
                 </div>
 
-                {/* Length Selector Toggle */}
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-xs text-slate-500 font-medium">Kotak kode OTP:</span>
-                  <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOtpLength(6);
-                        setOtpCode('');
-                      }}
-                      className={cn(
-                        'px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all cursor-pointer',
-                        otpLength === 6
-                          ? 'bg-white text-orange-600 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      )}
-                    >
-                      6 Digit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOtpLength(8);
-                        setOtpCode('');
-                      }}
-                      className={cn(
-                        'px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all cursor-pointer',
-                        otpLength === 8
-                          ? 'bg-white text-orange-600 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      )}
-                    >
-                      8 Digit
-                    </button>
-                  </div>
-                </div>
-
-                {/* OTP input with paste & keyboard nav */}
+                {/* 8-box OTP input with paste & keyboard nav */}
                 <div className="py-2">
                   <OtpInput
-                    length={otpLength}
+                    length={8}
                     value={otpCode}
                     onChange={(val) => {
                       setOtpCode(val);
                       if (errorMessage) setErrorMessage('');
                     }}
                     onComplete={(code) => handleVerifyOtp(code)}
-                    onAutoDetectLength={(detected) => setOtpLength(detected)}
                     disabled={isLoading}
                     hasError={Boolean(errorMessage)}
                     autoFocus
@@ -650,7 +611,7 @@ export default function RegisterPage() {
                   className="w-full min-h-[44px] font-bold"
                   isLoading={isLoading}
                   onClick={() => handleVerifyOtp()}
-                  disabled={(otpCode.length !== 6 && otpCode.length !== 8) || isLoading}
+                  disabled={otpCode.length !== 8 || isLoading}
                 >
                   Verifikasi & Lanjutkan
                   <ArrowRight className="w-4 h-4 ml-1.5" />
