@@ -266,11 +266,24 @@ export default function RegisterPage() {
       const supabase = createClient();
 
       // Verifikasi token 6 digit ke Supabase Auth
-      const { data, error } = await supabase.auth.verifyOtp({
+      let { data, error } = await supabase.auth.verifyOtp({
         email: cleanEmail,
         token: code,
         type: 'email',
       });
+
+      // Fallback: Jika Supabase menandai token sebagai jenis 'signup', verifikasi ulang dengan type 'signup'
+      if (error) {
+        const signupAttempt = await supabase.auth.verifyOtp({
+          email: cleanEmail,
+          token: code,
+          type: 'signup',
+        });
+        if (!signupAttempt.error && (signupAttempt.data?.session || signupAttempt.data?.user)) {
+          data = signupAttempt.data;
+          error = null;
+        }
+      }
 
       if (error) {
         setAttempts((prev) => prev + 1);
