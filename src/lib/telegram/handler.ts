@@ -151,28 +151,40 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       return { ok: true };
     }
 
-    // Link telegram account to user
-    const { error: linkError } = await supabase.from('telegram_accounts').upsert(
-      {
-        user_id: linkCodeRecord.user_id,
-        telegram_user_id: telegramUserId,
-        telegram_username: message.from.username || null,
-        first_name: message.from.first_name,
-        last_name: message.from.last_name || null,
-        notifications_enabled: true,
-        is_active: true,
-        linked_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id' }
-    );
+    // Clean up any stale records for this user or telegram_user_id to prevent constraint conflict
+    await supabase
+      .from('telegram_accounts')
+      .delete()
+      .or(`telegram_user_id.eq.${telegramUserId},user_id.eq.${linkCodeRecord.user_id}`);
+
+    // Insert guaranteed core columns
+    const { error: linkError } = await supabase.from('telegram_accounts').insert({
+      user_id: linkCodeRecord.user_id,
+      telegram_user_id: telegramUserId,
+      telegram_username: message.from.username || null,
+      first_name: message.from.first_name,
+      last_name: message.from.last_name || null,
+      is_active: true,
+      linked_at: new Date().toISOString(),
+    });
 
     if (linkError) {
       console.error('[Telegram] Error linking account:', linkError);
       await telegramBot.sendMessage({
         chat_id: chatId,
-        text: 'Terjadi kesalahan sistem saat menautkan akun. Coba lagi dalam beberapa saat.',
+        text: `Terjadi kesalahan sistem saat menautkan akun (${linkError.message || 'DB Error'}). Coba lagi dalam beberapa saat.`,
       });
       return { ok: false };
+    }
+
+    // Try optional update for notifications_enabled if column exists
+    try {
+      await supabase
+        .from('telegram_accounts')
+        .update({ notifications_enabled: true })
+        .eq('user_id', linkCodeRecord.user_id);
+    } catch {
+      // Ignored if column doesn't exist yet
     }
 
     // Mark link code as used (single-use enforcement)
