@@ -103,7 +103,37 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
   if (isStartWithCode) {
     const code = args.toUpperCase();
 
-    // Check code in telegram_link_codes (single-use, max 10 min expiry)
+    // 1. Try atomic SECURITY DEFINER procedure (bypasses RLS even if service role key is pending)
+    try {
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('verify_and_link_telegram', {
+        p_code: code,
+        p_telegram_user_id: telegramUserId,
+        p_telegram_username: message.from.username || null,
+        p_first_name: message.from.first_name,
+        p_last_name: message.from.last_name || null,
+      });
+
+      if (!rpcErr && rpcData) {
+        if (!rpcData.success) {
+          await telegramBot.sendMessage({
+            chat_id: chatId,
+            text: '❌ Kode tautan tidak valid atau sudah kedaluwarsa (berlaku 10 menit).\n\nSilakan generate kode baru melalui menu Pengaturan -> Telegram Bot di dashboard web TataDana.',
+          });
+          return { ok: true };
+        }
+
+        await telegramBot.sendMessage({
+          chat_id: chatId,
+          text: `🎉 *Selamat, Akun TataDana Berhasil Terhubung!*\n\nHalo ${message.from.first_name}, sekarang Anda bisa memantau saldo, anggaran, tagihan, dan mencatat transaksi langsung dari chat ini.\n\nCoba ketik sekarang:\n👉 \`/saldo\` — Cek saldo seluruh dompet\n👉 \`/anggaran\` — Pantau limit anggaran\n👉 \`/laporan\` — Rekap keuangan bulan ini\n👉 \`beli kopi 28rb pakai gopay\`\n\nKetik /help untuk panduan perintah lengkap.`,
+          parse_mode: 'Markdown',
+        });
+        return { ok: true, linked: true };
+      }
+    } catch (rpcCallErr) {
+      console.warn('[Telegram] RPC link attempt fallback to table query:', rpcCallErr);
+    }
+
+    // 2. Fallback to direct table queries
     const { data: linkCodeRecord, error: codeErr } = await supabase
       .from('telegram_link_codes')
       .select('*')
@@ -113,6 +143,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       .single();
 
     if (codeErr || !linkCodeRecord) {
+      console.warn('[Telegram] Link code verification rejected:', { code, codeErr });
       await telegramBot.sendMessage({
         chat_id: chatId,
         text: '❌ Kode tautan tidak valid atau sudah kedaluwarsa (berlaku 10 menit).\n\nSilakan generate kode baru melalui menu Pengaturan -> Telegram Bot di dashboard web TataDana.',

@@ -9,12 +9,21 @@ export function createAdminClient() {
     throw new Error('Konfigurasi SUPABASE_URL belum tersedia di environment variable.');
   }
 
+  const fallbackKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  const finalKey =
+    serviceRoleKey && serviceRoleKey.trim() !== '' && !serviceRoleKey.includes('dummy')
+      ? serviceRoleKey
+      : fallbackKey;
+
   if (!serviceRoleKey || serviceRoleKey.includes('dummy')) {
-    // Log helpful diagnostic without throwing in build/mock stages
-    console.warn('[Supabase Admin] SUPABASE_SERVICE_ROLE_KEY belum dikonfigurasi dengan key produksi asli.');
+    console.warn(
+      '[Supabase Admin] SUPABASE_SERVICE_ROLE_KEY belum dikonfigurasi. Menggunakan fallback anon key.'
+    );
   }
 
-  return createClient(supabaseUrl, serviceRoleKey || 'dummy-service-key', {
+  return createClient(supabaseUrl, finalKey || 'dummy-service-key', {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

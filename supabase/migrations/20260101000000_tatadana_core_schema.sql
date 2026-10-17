@@ -820,3 +820,76 @@ ON CONFLICT (name) DO UPDATE SET
     priority = EXCLUDED.priority,
     config = EXCLUDED.config;
 
+-- 4. Atomic Telegram Link Procedure (SECURITY DEFINER for Webhook Callbacks)
+CREATE OR REPLACE FUNCTION public.verify_and_link_telegram(
+    p_code TEXT,
+    p_telegram_user_id BIGINT,
+    p_telegram_username TEXT,
+    p_first_name TEXT,
+    p_last_name TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_link_record RECORD;
+    v_user_id UUID;
+BEGIN
+    -- 1. Find valid unused code
+    SELECT * INTO v_link_record
+    FROM public.telegram_link_codes
+    WHERE code = UPPER(TRIM(p_code))
+      AND used_at IS NULL
+      AND expires_at > now()
+    LIMIT 1;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'error', 'CODE_NOT_FOUND_OR_EXPIRED');
+    END IF;
+
+    v_user_id := v_link_record.user_id;
+
+    -- 2. Mark code as used
+    UPDATE public.telegram_link_codes
+    SET used_at = now()
+    WHERE id = v_link_record.id;
+
+    -- 3. Upsert telegram_accounts
+    INSERT INTO public.telegram_accounts (
+        user_id,
+        telegram_user_id,
+        telegram_username,
+        first_name,
+        last_name,
+        notifications_enabled,
+        is_active,
+        linked_at
+    )
+    VALUES (
+        v_user_id,
+        p_telegram_user_id,
+        p_telegram_username,
+        p_first_name,
+        p_last_name,
+        TRUE,
+        TRUE,
+        now()
+    )
+    ON CONFLICT (user_id) DO UPDATE SET
+        telegram_user_id = EXCLUDED.telegram_user_id,
+        telegram_username = EXCLUDED.telegram_username,
+        first_name = EXCLUDED.first_name,
+        last_name = EXCLUDED.last_name,
+        notifications_enabled = TRUE,
+        is_active = TRUE,
+        linked_at = now();
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'user_id', v_user_id
+    );
+END;
+$$;
+
