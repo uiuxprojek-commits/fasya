@@ -62,8 +62,24 @@ export default function RegisterPage() {
   const [cooldown, setCooldown] = React.useState(0);
   const [attempts, setAttempts] = React.useState(0);
 
-  // 1. Restore state from sessionStorage on mount (Handles page refresh safely)
+  // 1. Restore state from sessionStorage or URL query on mount
   React.useEffect(() => {
+    // Check if user came from email link with ?step=3
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get('step') === '3') {
+        const supabase = createClient();
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user) {
+            setEmail(session.user.email || '');
+            setStep(3);
+            setSuccessMessage('Email berhasil dikonfirmasi! Silakan buat kata sandi akun Anda.');
+            return;
+          }
+        });
+      }
+    }
+
     try {
       const saved = sessionStorage.getItem(REG_STORAGE_KEY);
       if (!saved) return;
