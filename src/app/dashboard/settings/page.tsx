@@ -93,6 +93,9 @@ function SettingsContent() {
         setEmail(profileData.profile.email || '');
         setCurrency(profileData.profile.currency || 'IDR');
       }
+      if (profileData.subscription?.planCode) {
+        setPlanCode(profileData.subscription.planCode);
+      }
       setCategories(catData.categories || []);
 
       if (tgData) {
@@ -109,6 +112,14 @@ function SettingsContent() {
 
   React.useEffect(() => {
     loadProfileAndCategories();
+
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('payment') === 'finish' || searchParams.get('simulated_payment') === 'success') {
+        setActiveTab('subscription');
+        alert('🎉 Terima kasih! Pembayaran Anda sedang diproses dan diverifikasi.');
+      }
+    }
   }, [loadProfileAndCategories]);
 
   const handleSaveProfile = async () => {
@@ -230,16 +241,23 @@ function SettingsContent() {
       });
       const data = await res.json();
 
+      if (!res.ok || data.error) {
+        alert(data.error || 'Gagal memproses pembayaran ke Midtrans.');
+        return;
+      }
+
       if (data.redirectUrl) {
         window.location.href = data.redirectUrl;
       } else if (data.instructions) {
         alert(
           `Silakan transfer ke ${data.instructions.bankName} No. Rekening: ${data.instructions.accountNumber} an ${data.instructions.accountHolder} sebesar ${formatRupiah(data.instructions.nominal)}.`
         );
+      } else {
+        alert('Tautan pembayaran tidak diterima dari server.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Payment error:', err);
-      alert('Gagal memproses pembayaran');
+      alert(`Gagal memproses pembayaran: ${err?.message || 'Koneksi error'}`);
     } finally {
       setIsUpgrading(false);
     }
@@ -850,22 +868,30 @@ function SettingsContent() {
                 </ul>
 
                 <div className="mt-6 pt-4 border-t border-orange-100 flex flex-col gap-2">
-                  <Button
-                    variant="primary"
-                    isLoading={isUpgrading}
-                    onClick={() => handleUpgradePro('midtrans')}
-                    className="w-full"
-                  >
-                    Upgrade via Midtrans (QRIS / VA / CC)
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleUpgradePro('manual_transfer')}
-                    className="w-full text-xs"
-                  >
-                    Transfer Bank Manual (BCA)
-                  </Button>
+                  {planCode === 'pro' ? (
+                    <div className="w-full py-3 px-4 rounded-xl bg-emerald-50 text-emerald-800 text-center font-bold text-xs border border-emerald-200">
+                      ✓ Paket Pro Anda Sedang Aktif
+                    </div>
+                  ) : (
+                    <>
+                      <Button
+                        variant="primary"
+                        isLoading={isUpgrading}
+                        onClick={() => handleUpgradePro('midtrans')}
+                        className="w-full"
+                      >
+                        Upgrade via Midtrans (QRIS / VA / CC)
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleUpgradePro('manual_transfer')}
+                        className="w-full text-xs"
+                      >
+                        Transfer Bank Manual (BCA)
+                      </Button>
+                    </>
+                  )}
                 </div>
               </Card>
             </div>

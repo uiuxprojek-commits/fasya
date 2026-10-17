@@ -38,7 +38,25 @@ export async function GET() {
       onboarding_completed: false,
     };
 
-    return NextResponse.json({ profile: finalProfile });
+    // Fetch user subscription entitlement
+    const { data: sub } = await supabase
+      .from('user_subscriptions')
+      .select('*, plan:subscription_plans(*)')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    return NextResponse.json({
+      profile: finalProfile,
+      subscription: sub
+        ? {
+            planCode: sub.plan?.code || 'starter',
+            planName: sub.plan?.name || 'Starter',
+            status: sub.status,
+            endDate: sub.end_date,
+          }
+        : { planCode: 'starter', planName: 'Starter', status: 'active' },
+    });
   } catch (err) {
     console.error('[Profile API] GET error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
