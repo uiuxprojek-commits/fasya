@@ -893,3 +893,28 @@ BEGIN
 END;
 $$;
 
+-- 5. Helper to get active telegram account (SECURITY DEFINER for Telegram Webhook)
+CREATE OR REPLACE FUNCTION public.get_telegram_account(p_telegram_user_id BIGINT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_account RECORD;
+BEGIN
+    SELECT * INTO v_account
+    FROM public.telegram_accounts
+    WHERE telegram_user_id = p_telegram_user_id
+      AND is_active = TRUE
+    LIMIT 1;
+
+    IF NOT FOUND THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN to_jsonb(v_account);
+END;
+$$;
+
+

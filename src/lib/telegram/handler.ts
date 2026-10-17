@@ -82,12 +82,41 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
   }
 
   // 2. Check Linking Status
-  const { data: tgAccount } = await supabase
-    .from('telegram_accounts')
-    .select('*, profiles:user_id(*)')
-    .eq('telegram_user_id', telegramUserId)
-    .eq('is_active', true)
-    .maybeSingle();
+  let tgAccount: any = null;
+  try {
+    const { data: directAccount, error: tgErr } = await supabase
+      .from('telegram_accounts')
+      .select('*')
+      .eq('telegram_user_id', telegramUserId)
+      .maybeSingle();
+
+    if (directAccount) {
+      tgAccount = directAccount;
+    } else if (tgErr) {
+      console.warn('[TelegramHandler] Direct lookup warning:', tgErr.message);
+    }
+  } catch (err) {
+    console.warn('[TelegramHandler] Query exception:', err);
+  }
+
+  // Fallback via RPC in case anon key is used and RLS blocks direct table select
+  if (!tgAccount) {
+    try {
+      const { data: rpcAcc } = await supabase.rpc('get_telegram_account', {
+        p_telegram_user_id: telegramUserId,
+      });
+      if (rpcAcc) {
+        tgAccount = typeof rpcAcc === 'string' ? JSON.parse(rpcAcc) : rpcAcc;
+      }
+    } catch {
+      // Ignored if RPC doesn't exist
+    }
+  }
+
+  // Ensure account is active
+  if (tgAccount && tgAccount.is_active === false) {
+    tgAccount = null;
+  }
 
   // Parse Command & Arguments
   const parts = text.split(/\s+/);
