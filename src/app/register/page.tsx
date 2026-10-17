@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OtpInput } from '@/components/ui/otp-input';
+import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import {
   Mail,
