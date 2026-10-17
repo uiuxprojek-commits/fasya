@@ -40,7 +40,7 @@ export default function DashboardPage() {
   const [totalBalance, setTotalBalance] = React.useState(0);
   const [monthlyIncome, setMonthlyIncome] = React.useState(0);
   const [monthlyExpense, setMonthlyExpense] = React.useState(0);
-  const [budgetRemaining, setBudgetRemaining] = React.useState(1500000);
+  const [budgetRemaining, setBudgetRemaining] = React.useState(0);
 
   const fetchDashboardData = React.useCallback(async () => {
     setIsLoading(true);
@@ -55,29 +55,40 @@ export default function DashboardPage() {
       setTotalBalance(bal);
 
       // 2. Fetch Transactions
-      const txRes = await fetch('/api/transactions?limit=10');
+      const txRes = await fetch('/api/transactions?limit=25');
       const txData = await txRes.json();
       const loadedTxs: Transaction[] = txData.transactions || [];
       setTransactions(loadedTxs);
 
-      // Calculate month income & expense
+      // 3. Fetch Categories
+      const catRes = await fetch('/api/categories');
+      const catData = await catRes.json();
+      setCategories(catData.categories || []);
+
+      // 4. Fetch Budgets
+      const bgtRes = await fetch('/api/budgets');
+      const bgtData = await bgtRes.json();
+      const loadedBudgets = bgtData.budgets || [];
+      const totalBgt = loadedBudgets.reduce((acc: number, b: any) => acc + Number(b.monthly_amount), 0);
+      const totalBgtSpent = loadedBudgets.reduce((acc: number, b: any) => acc + Number(b.spent_amount), 0);
+      setBudgetRemaining(Math.max(totalBgt - totalBgtSpent, 0));
+
+      // Calculate real current month income & expense
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+
       let inc = 0;
       let exp = 0;
       loadedTxs.forEach((t) => {
-        if (t.type === 'income') inc += Number(t.amount);
-        if (t.type === 'expense') exp += Number(t.amount);
+        const txDate = new Date(t.date);
+        if (txDate.getFullYear() === currentYear && txDate.getMonth() === currentMonth) {
+          if (t.type === 'income') inc += Number(t.amount);
+          if (t.type === 'expense') exp += Number(t.amount);
+        }
       });
-      setMonthlyIncome(inc > 0 ? inc : 5500000);
-      setMonthlyExpense(exp > 0 ? exp : 2150000);
-
-      // 3. Fallback Categories
-      setCategories([
-        { id: '1', name: 'Makanan & Minuman', type: 'expense', icon: 'Utensils', color: '#F97316', is_system: true, is_archived: false, created_at: '' },
-        { id: '2', name: 'Transportasi', type: 'expense', icon: 'Car', color: '#3B82F6', is_system: true, is_archived: false, created_at: '' },
-        { id: '3', name: 'Tagihan & Utilitas', type: 'expense', icon: 'Receipt', color: '#EF4444', is_system: true, is_archived: false, created_at: '' },
-        { id: '4', name: 'Gaji Pokok', type: 'income', icon: 'Briefcase', color: '#10B981', is_system: true, is_archived: false, created_at: '' },
-        { id: '5', name: 'Freelance', type: 'income', icon: 'Laptop', color: '#06B6D4', is_system: true, is_archived: false, created_at: '' },
-      ]);
+      setMonthlyIncome(inc);
+      setMonthlyExpense(exp);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
     } finally {
@@ -89,17 +100,56 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Demo Fallback wallets if user has no wallets yet
-  const displayWallets =
-    wallets.length > 0
-      ? wallets
-      : [
-          { id: 'demo-1', user_id: '1', name: 'BCA Utama', type: 'bank' as const, balance: 4250000, is_default: true, is_archived: false, color: '#3B82F6', icon: 'bank', created_at: '', updated_at: '' },
-          { id: 'demo-2', user_id: '1', name: 'GoPay', type: 'ewallet' as const, balance: 350000, is_default: false, is_archived: false, color: '#10B981', icon: 'ewallet', created_at: '', updated_at: '' },
-          { id: 'demo-3', user_id: '1', name: 'Dompet Tunai', type: 'cash' as const, balance: 200000, is_default: false, is_archived: false, color: '#F97316', icon: 'cash', created_at: '', updated_at: '' },
-        ];
+  // Dynamic Chart aggregations
+  const categoryChartData = React.useMemo(() => {
+    const map: Record<string, number> = {};
+    const colorPalette = ['#F97316', '#3B82F6', '#EF4444', '#10B981', '#8B5CF6', '#EC4899', '#F59E0B'];
+    transactions
+      .filter((t) => t.type === 'expense')
+      .forEach((t) => {
+        const catName = t.category?.name || 'Pengeluaran Lain';
+        map[catName] = (map[catName] || 0) + Number(t.amount);
+      });
 
-  const currentBalance = totalBalance > 0 ? totalBalance : 4800000;
+    return Object.entries(map).map(([name, value], i) => ({
+      name,
+      value,
+      color: colorPalette[i % colorPalette.length],
+    }));
+  }, [transactions]);
+
+  const monthlyChartData = React.useMemo(() => {
+    if (transactions.length === 0) return [];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+    const map: Record<string, { month: string; pemasukan: number; pengeluaran: number }> = {};
+
+    transactions.forEach((t) => {
+      const d = new Date(t.date);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const mName = monthNames[d.getMonth()];
+      if (!map[key]) {
+        map[key] = { month: mName, pemasukan: 0, pengeluaran: 0 };
+      }
+      if (t.type === 'income') map[key].pemasukan += Number(t.amount);
+      if (t.type === 'expense') map[key].pengeluaran += Number(t.amount);
+    });
+
+    return Object.values(map);
+  }, [transactions]);
+
+  const dailyChartData = React.useMemo(() => {
+    if (transactions.length === 0) return [];
+    const map: Record<string, number> = {};
+    const recentExpenses = transactions.filter((t) => t.type === 'expense').slice(0, 7);
+
+    recentExpenses.forEach((t) => {
+      const d = new Date(t.date);
+      const label = `${d.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'][d.getMonth()]}`;
+      map[label] = (map[label] || 0) + Number(t.amount);
+    });
+
+    return Object.entries(map).map(([date, pengeluaran]) => ({ date, pengeluaran }));
+  }, [transactions]);
 
   return (
     <div className="flex-1 pb-16">
@@ -147,25 +197,23 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Saldo Total"
-            amount={currentBalance}
+            amount={totalBalance}
             type="balance"
-            subtitle={`${displayWallets.length} dompet aktif`}
+            subtitle={`${wallets.length} dompet aktif`}
             isLoading={isLoading}
           />
           <StatCard
             title="Pemasukan Bulan Ini"
             amount={monthlyIncome}
             type="income"
-            trendPercentage={12}
-            trendText="dibanding bulan lalu"
+            subtitle="Pemasukan terverifikasi"
             isLoading={isLoading}
           />
           <StatCard
             title="Pengeluaran Bulan Ini"
             amount={monthlyExpense}
             type="expense"
-            trendPercentage={-5}
-            trendText="pengeluaran terkontrol"
+            subtitle="Pengeluaran tercatat"
             isLoading={isLoading}
           />
           <StatCard
@@ -220,29 +268,9 @@ export default function DashboardPage() {
 
         {/* 3. Recharts Visualizations */}
         <DashboardCharts
-          categoryData={[
-            { name: 'Makanan & Minuman', value: 850000, color: '#F97316' },
-            { name: 'Transportasi', value: 450000, color: '#3B82F6' },
-            { name: 'Tagihan & Utilitas', value: 500000, color: '#EF4444' },
-            { name: 'Belanja Harian', value: 350000, color: '#8B5CF6' },
-          ]}
-          monthlyData={[
-            { month: 'Mei', pemasukan: 5000000, pengeluaran: 3800000 },
-            { month: 'Jun', pemasukan: 5500000, pengeluaran: 4100000 },
-            { month: 'Jul', pemasukan: 5200000, pengeluaran: 3900000 },
-            { month: 'Ags', pemasukan: 6000000, pengeluaran: 4500000 },
-            { month: 'Sep', pemasukan: 5800000, pengeluaran: 4200000 },
-            { month: 'Okt', pemasukan: 6200000, pengeluaran: 3950000 },
-          ]}
-          dailyData={[
-            { date: '11 Okt', pengeluaran: 85000 },
-            { date: '12 Okt', pengeluaran: 120000 },
-            { date: '13 Okt', pengeluaran: 45000 },
-            { date: '14 Okt', pengeluaran: 230000 },
-            { date: '15 Okt', pengeluaran: 95000 },
-            { date: '16 Okt', pengeluaran: 160000 },
-            { date: '17 Okt', pengeluaran: 75000 },
-          ]}
+          categoryData={categoryChartData}
+          monthlyData={monthlyChartData}
+          dailyData={dailyChartData}
         />
 
         {/* 4. Recent Transactions & Multi-wallet Overview */}
@@ -346,29 +374,41 @@ export default function DashboardPage() {
                 </Link>
               </CardHeader>
               <CardContent className="space-y-3">
-                {displayWallets.map((w) => (
-                  <div
-                    key={w.id}
-                    className="p-3 rounded-xl border border-slate-100 bg-slate-50/60 flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-800">{w.name}</span>
-                        {w.is_default && (
-                          <Badge variant="primary" className="text-[10px] py-0 px-1.5">
-                            Utama
-                          </Badge>
-                        )}
+                {wallets.length === 0 ? (
+                  <div className="text-center py-6 px-3 bg-slate-50/80 rounded-xl border border-dashed border-slate-200 space-y-2">
+                    <p className="text-xs text-slate-500 font-medium">Belum ada dompet dibuat.</p>
+                    <Link
+                      href="/dashboard/wallet"
+                      className="inline-block text-xs font-bold text-orange-600 hover:text-orange-700"
+                    >
+                      + Buat Dompet Pertama
+                    </Link>
+                  </div>
+                ) : (
+                  wallets.map((w) => (
+                    <div
+                      key={w.id}
+                      className="p-3 rounded-xl border border-slate-100 bg-slate-50/60 flex items-center justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-800">{w.name}</span>
+                          {w.is_default && (
+                            <Badge variant="primary" className="text-[10px] py-0 px-1.5">
+                              Utama
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                          {w.type}
+                        </span>
                       </div>
-                      <span className="text-[10px] text-slate-400 uppercase font-semibold">
-                        {w.type}
+                      <span className="text-xs font-extrabold text-slate-900">
+                        {formatRupiah(w.balance)}
                       </span>
                     </div>
-                    <span className="text-xs font-extrabold text-slate-900">
-                      {formatRupiah(w.balance)}
-                    </span>
-                  </div>
-                ))}
+                  ))
+                )}
 
                 <Button
                   variant="outline"
@@ -408,14 +448,14 @@ export default function DashboardPage() {
       <TransactionModal
         isOpen={isTxModalOpen}
         onClose={() => setIsTxModalOpen(false)}
-        wallets={displayWallets}
+        wallets={wallets}
         categories={categories}
         onSuccess={fetchDashboardData}
       />
       <TransferModal
         isOpen={isTransferModalOpen}
         onClose={() => setIsTransferModalOpen(false)}
-        wallets={displayWallets}
+        wallets={wallets}
         onSuccess={fetchDashboardData}
       />
     </div>

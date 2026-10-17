@@ -27,18 +27,69 @@ export default function LaporanPage() {
     new Date().toISOString().split('T')[0]
   );
 
-  const [totalIncome, setTotalIncome] = React.useState(5500000);
-  const [totalExpense, setTotalExpense] = React.useState(2350000);
+  const [totalIncome, setTotalIncome] = React.useState(0);
+  const [totalExpense, setTotalExpense] = React.useState(0);
+  const [topCategories, setTopCategories] = React.useState<
+    Array<{ name: string; amount: number; percentage: number; color: string }>
+  >([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [isExporting, setIsExporting] = React.useState(false);
   const [exportError, setExportError] = React.useState('');
 
-  const topCategories = [
-    { name: 'Makanan & Minuman', amount: 950000, percentage: 40, color: 'bg-orange-500' },
-    { name: 'Tagihan & Utilitas', amount: 550000, percentage: 23, color: 'bg-red-500' },
-    { name: 'Transportasi', amount: 450000, percentage: 19, color: 'bg-blue-500' },
-    { name: 'Belanja Harian', amount: 250000, percentage: 11, color: 'bg-purple-500' },
-    { name: 'Hiburan', amount: 150000, percentage: 7, color: 'bg-pink-500' },
-  ];
+  const fetchReportData = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/transactions?startDate=${startDate}&endDate=${endDate}&limit=500`
+      );
+      const data = await res.json();
+      const txs = data.transactions || [];
+
+      let inc = 0;
+      let exp = 0;
+      const catMap: Record<string, number> = {};
+
+      txs.forEach((t: any) => {
+        const amt = Number(t.amount);
+        if (t.type === 'income') inc += amt;
+        if (t.type === 'expense') {
+          exp += amt;
+          const cName = t.category?.name || 'Pengeluaran Lain';
+          catMap[cName] = (catMap[cName] || 0) + amt;
+        }
+      });
+
+      setTotalIncome(inc);
+      setTotalExpense(exp);
+
+      const colorClasses = [
+        'bg-orange-500',
+        'bg-blue-500',
+        'bg-red-500',
+        'bg-purple-500',
+        'bg-emerald-500',
+      ];
+      const calculatedCategories = Object.entries(catMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, amount], idx) => ({
+          name,
+          amount,
+          percentage: exp > 0 ? Math.round((amount / exp) * 100) : 0,
+          color: colorClasses[idx % colorClasses.length],
+        }));
+
+      setTopCategories(calculatedCategories);
+    } catch (err) {
+      console.error('Error fetching report data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [startDate, endDate]);
+
+  React.useEffect(() => {
+    fetchReportData();
+  }, [fetchReportData]);
 
   const handleExport = async (format: 'pdf' | 'xlsx') => {
     setIsExporting(true);
@@ -196,23 +247,31 @@ export default function LaporanPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {topCategories.map((cat, idx) => (
-              <div key={idx} className="space-y-1.5">
-                <div className="flex justify-between text-xs font-bold text-slate-800">
-                  <span>{cat.name}</span>
-                  <span>
-                    {formatRupiah(cat.amount)}{' '}
-                    <span className="text-slate-400 font-normal">({cat.percentage}%)</span>
-                  </span>
+            {isLoading ? (
+              <p className="text-xs text-slate-400 py-4 text-center">Menghitung rincian kategori...</p>
+            ) : topCategories.length === 0 ? (
+              <p className="text-xs text-slate-400 py-4 text-center">
+                Belum ada transaksi pengeluaran pada rentang tanggal yang dipilih.
+              </p>
+            ) : (
+              topCategories.map((cat, idx) => (
+                <div key={idx} className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-bold text-slate-800">
+                    <span>{cat.name}</span>
+                    <span>
+                      {formatRupiah(cat.amount)}{' '}
+                      <span className="text-slate-400 font-normal">({cat.percentage}%)</span>
+                    </span>
+                  </div>
+                  <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${cat.color} rounded-full`}
+                      style={{ width: `${cat.percentage}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${cat.color} rounded-full`}
-                    style={{ width: `${cat.percentage}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
 

@@ -69,17 +69,13 @@ export default function TransaksiPage() {
   }, [fetchTransactions]);
 
   React.useEffect(() => {
-    // Fetch wallets and categories for filtering
     fetch('/api/wallets')
       .then((r) => r.json())
       .then((d) => setWallets(d.wallets || []));
 
-    setCategories([
-      { id: '1', name: 'Makanan & Minuman', type: 'expense', icon: 'Utensils', color: '#F97316', is_system: true, is_archived: false, created_at: '' },
-      { id: '2', name: 'Transportasi', type: 'expense', icon: 'Car', color: '#3B82F6', is_system: true, is_archived: false, created_at: '' },
-      { id: '3', name: 'Tagihan & Utilitas', type: 'expense', icon: 'Receipt', color: '#EF4444', is_system: true, is_archived: false, created_at: '' },
-      { id: '4', name: 'Gaji Pokok', type: 'income', icon: 'Briefcase', color: '#10B981', is_system: true, is_archived: false, created_at: '' },
-    ]);
+    fetch('/api/categories')
+      .then((r) => r.json())
+      .then((d) => setCategories(d.categories || []));
   }, []);
 
   const handleDelete = async (id: string) => {

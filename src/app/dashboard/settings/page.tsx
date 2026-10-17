@@ -31,10 +31,17 @@ function SettingsContent() {
   >(initialTab as any);
 
   // Profile Form
-  const [fullName, setFullName] = React.useState('Ahmad Fasya');
-  const [email, setEmail] = React.useState('fasya@tatadana.id');
+  const [fullName, setFullName] = React.useState('');
+  const [email, setEmail] = React.useState('');
   const [currency, setCurrency] = React.useState('IDR');
   const [profileSaved, setProfileSaved] = React.useState(false);
+  const [isSavingProfile, setIsSavingProfile] = React.useState(false);
+
+  // Categories State
+  const [categories, setCategories] = React.useState<any[]>([]);
+  const [newCatName, setNewCatName] = React.useState('');
+  const [newCatType, setNewCatType] = React.useState<'expense' | 'income'>('expense');
+  const [isAddingCat, setIsAddingCat] = React.useState(false);
 
   // Telegram Linking State
   const [linkCode, setLinkCode] = React.useState('');
@@ -55,6 +62,73 @@ function SettingsContent() {
   const [isUpgrading, setIsUpgrading] = React.useState(false);
 
   const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'TataDanaBot';
+
+  const loadProfileAndCategories = React.useCallback(async () => {
+    try {
+      const [profileRes, catRes] = await Promise.all([
+        fetch('/api/profile'),
+        fetch('/api/categories'),
+      ]);
+      const profileData = await profileRes.json();
+      const catData = await catRes.json();
+
+      if (profileData.profile) {
+        setFullName(profileData.profile.full_name || '');
+        setEmail(profileData.profile.email || '');
+        setCurrency(profileData.profile.currency || 'IDR');
+      }
+      setCategories(catData.categories || []);
+    } catch (err) {
+      console.error('Error loading settings data:', err);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadProfileAndCategories();
+  }, [loadProfileAndCategories]);
+
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName, currency }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan profil');
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 3000);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal menyimpan profil');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatName.trim()) return;
+    setIsAddingCat(true);
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCatName.trim(),
+          type: newCatType,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal membuat kategori');
+      setNewCatName('');
+      loadProfileAndCategories();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal membuat kategori');
+    } finally {
+      setIsAddingCat(false);
+    }
+  };
 
   const handleGenerateLinkCode = async () => {
     setIsGeneratingCode(true);
@@ -213,10 +287,8 @@ function SettingsContent() {
               <Button
                 size="sm"
                 variant="primary"
-                onClick={() => {
-                  setProfileSaved(true);
-                  setTimeout(() => setProfileSaved(false), 3000);
-                }}
+                onClick={handleSaveProfile}
+                isLoading={isSavingProfile}
               >
                 Simpan Perubahan
               </Button>
@@ -418,31 +490,60 @@ function SettingsContent() {
                 Daftar pos kategori pengeluaran dan pemasukan dengan ikon dan warna pilihan.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {[
-                  { name: 'Makanan & Minuman', icon: '🍔', color: '#F97316', type: 'Pengeluaran' },
-                  { name: 'Transportasi', icon: '🚗', color: '#3B82F6', type: 'Pengeluaran' },
-                  { name: 'Tagihan & Utilitas', icon: '⚡', color: '#EF4444', type: 'Pengeluaran' },
-                  { name: 'Belanja Harian', icon: '🛒', color: '#8B5CF6', type: 'Pengeluaran' },
-                  { name: 'Kesehatan & Obat', icon: '💊', color: '#10B981', type: 'Pengeluaran' },
-                  { name: 'Gaji Pokok', icon: '💼', color: '#10B981', type: 'Pemasukan' },
-                  { name: 'Freelance & Side Job', icon: '💻', color: '#06B6D4', type: 'Pemasukan' },
-                ].map((cat, i) => (
-                  <div
-                    key={i}
-                    className="p-3 rounded-xl border border-slate-100 bg-slate-50/60 flex items-center justify-between"
+            <CardContent className="space-y-6">
+              {/* Form Tambah Kategori Baru */}
+              <form onSubmit={handleCreateCategory} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row gap-3 items-end">
+                <div className="flex-1 w-full space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Nama Kategori Baru</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Belanja Online, Donasi"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-orange-500 focus:outline-none"
+                    required
+                  />
+                </div>
+                <div className="w-full sm:w-40 space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Jenis Kategori</label>
+                  <select
+                    value={newCatType}
+                    onChange={(e) => setNewCatType(e.target.value as any)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-orange-500 focus:outline-none"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-lg">{cat.icon}</span>
-                      <div>
-                        <h5 className="text-xs font-bold text-slate-800">{cat.name}</h5>
-                        <span className="text-[10px] text-slate-400 font-semibold">{cat.type}</span>
+                    <option value="expense">Pengeluaran</option>
+                    <option value="income">Pemasukan</option>
+                  </select>
+                </div>
+                <Button type="submit" size="sm" variant="primary" isLoading={isAddingCat} className="w-full sm:w-auto">
+                  + Tambah Kategori
+                </Button>
+              </form>
+
+              {/* Grid Kategori Tersimpan */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {categories.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-4 col-span-3 text-center">Memuat kategori...</p>
+                ) : (
+                  categories.map((cat) => (
+                    <div
+                      key={cat.id}
+                      className="p-3 rounded-xl border border-slate-100 bg-slate-50/60 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-base">🏷️</span>
+                        <div>
+                          <h5 className="text-xs font-bold text-slate-800">{cat.name}</h5>
+                          <span className="text-[10px] text-slate-400 font-semibold capitalize">
+                            {cat.type === 'expense' ? 'Pengeluaran' : 'Pemasukan'}
+                            {cat.is_system ? ' • Sistem' : ' • Kustom'}
+                          </span>
+                        </div>
                       </div>
+                      <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: cat.color || '#F97316' }} />
                     </div>
-                    <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: cat.color }} />
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>

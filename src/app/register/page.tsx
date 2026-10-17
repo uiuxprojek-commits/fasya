@@ -18,6 +18,7 @@ export default function RegisterPage() {
   const [password, setPassword] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState('');
+  const [isSuccess, setIsSuccess] = React.useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,23 +41,37 @@ export default function RegisterPage() {
             full_name: fullName,
             phone_number: phone,
           },
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
         },
       });
 
       if (error) {
-        if (error.message.includes('fetch') || error.message.includes('dummy')) {
-          router.push('/onboarding');
-          return;
-        }
         throw error;
       }
 
-      // Proceed straight to guided onboarding
+      // If Supabase project requires email confirmation
+      if (data.user && !data.session) {
+        setIsSuccess(true);
+        return;
+      }
+
+      // If auto-authenticated, proceed straight to guided onboarding
       router.push('/onboarding');
+      router.refresh();
     } catch (err: unknown) {
-      setErrorMessage(
-        err instanceof Error ? err.message : 'Terjadi kesalahan pendaftaran akun.'
-      );
+      if (err instanceof Error) {
+        if (err.message.includes('User already registered')) {
+          setErrorMessage('Email ini sudah terdaftar. Silakan gunakan email lain atau langsung masuk ke akun Anda.');
+        } else if (err.message.includes('Password should be at least')) {
+          setErrorMessage('Kata sandi minimal terdiri dari 8 karakter.');
+        } else if (err.message.includes('fetch')) {
+          setErrorMessage('Gagal menghubungi server Supabase. Pastikan koneksi internet Anda aktif.');
+        } else {
+          setErrorMessage(err.message);
+        }
+      } else {
+        setErrorMessage('Terjadi kesalahan pendaftaran akun. Silakan coba lagi.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -89,66 +104,87 @@ export default function RegisterPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-2">
-            {errorMessage && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-                <span>{errorMessage}</span>
+            {isSuccess ? (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-3">
+                <ShieldCheck className="w-10 h-10 text-emerald-500 mx-auto" />
+                <h4 className="text-base font-bold text-emerald-900">Pendaftaran Berhasil!</h4>
+                <p className="text-xs text-emerald-700 leading-relaxed">
+                  Tautan konfirmasi telah dikirim ke <strong>{email}</strong>. Silakan periksa kotak masuk atau folder spam email Anda untuk mengaktifkan akun dan mulai menggunakan TataDana.
+                </p>
+                <div className="pt-2">
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                  >
+                    Buka Halaman Masuk
+                    <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                  </Link>
+                </div>
               </div>
+            ) : (
+              <>
+                {errorMessage && (
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <Input
+                    label="Nama Lengkap"
+                    placeholder="Contoh: Ahmad Fasya"
+                    leftIcon={<User className="w-4 h-4" />}
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                  />
+
+                  <Input
+                    label="Alamat Email"
+                    type="email"
+                    placeholder="nama@email.com"
+                    leftIcon={<Mail className="w-4 h-4" />}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+
+                  <Input
+                    label="Nomor WhatsApp / HP"
+                    type="tel"
+                    placeholder="081234567890"
+                    leftIcon={<Phone className="w-4 h-4" />}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    helperText="Digunakan untuk verifikasi keamanan saat linking bot Telegram."
+                    required
+                  />
+
+                  <Input
+                    label="Kata Sandi"
+                    type="password"
+                    placeholder="Minimal 8 karakter"
+                    leftIcon={<Lock className="w-4 h-4" />}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="new-password"
+                  />
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    className="w-full"
+                    isLoading={isLoading}
+                  >
+                    Lanjutkan ke Onboarding
+                    <ArrowRight className="w-4 h-4 ml-1.5" />
+                  </Button>
+                </form>
+              </>
             )}
-
-            <form onSubmit={handleRegister} className="space-y-4">
-              <Input
-                label="Nama Lengkap"
-                placeholder="Contoh: Ahmad Fasya"
-                leftIcon={<User className="w-4 h-4" />}
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-              />
-
-              <Input
-                label="Alamat Email"
-                type="email"
-                placeholder="nama@email.com"
-                leftIcon={<Mail className="w-4 h-4" />}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-              />
-
-              <Input
-                label="Nomor WhatsApp / HP"
-                type="tel"
-                placeholder="081234567890"
-                leftIcon={<Phone className="w-4 h-4" />}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                helperText="Digunakan untuk verifikasi keamanan saat linking bot Telegram."
-                required
-              />
-
-              <Input
-                label="Kata Sandi"
-                type="password"
-                placeholder="Minimal 8 karakter"
-                leftIcon={<Lock className="w-4 h-4" />}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-              />
-
-              <Button
-                type="submit"
-                variant="primary"
-                className="w-full"
-                isLoading={isLoading}
-              >
-                Lanjutkan ke Onboarding
-                <ArrowRight className="w-4 h-4 ml-1.5" />
-              </Button>
-            </form>
           </CardContent>
           <CardFooter className="justify-center border-t border-slate-100 text-xs text-slate-500">
             Sudah memiliki akun TataDana?{' '}

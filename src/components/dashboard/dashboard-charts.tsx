@@ -50,41 +50,29 @@ export function DashboardCharts({
   monthlyData = [],
   dailyData = [],
 }: DashboardChartsProps) {
-  // Safe fallbacks if data is empty
-  const safeCategoryData =
-    categoryData.length > 0
-      ? categoryData
-      : [
-          { name: 'Makanan & Minuman', value: 450000, color: '#F97316' },
-          { name: 'Transportasi', value: 250000, color: '#3B82F6' },
-          { name: 'Tagihan', value: 350000, color: '#EF4444' },
-          { name: 'Belanja', value: 200000, color: '#8B5CF6' },
-        ];
+  const hasData = categoryData.length > 0 || monthlyData.length > 0 || dailyData.length > 0;
 
-  const safeMonthlyData =
-    monthlyData.length > 0
-      ? monthlyData
-      : [
-          { month: 'Mei', pemasukan: 5000000, pengeluaran: 3800000 },
-          { month: 'Jun', pemasukan: 5500000, pengeluaran: 4100000 },
-          { month: 'Jul', pemasukan: 5200000, pengeluaran: 3900000 },
-          { month: 'Ags', pemasukan: 6000000, pengeluaran: 4500000 },
-          { month: 'Sep', pemasukan: 5800000, pengeluaran: 4200000 },
-          { month: 'Okt', pemasukan: 6200000, pengeluaran: 3950000 },
-        ];
+  if (!hasData) {
+    return (
+      <Card className="p-8 text-center bg-white border-slate-200">
+        <div className="max-w-md mx-auto space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center mx-auto">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h4 className="text-sm font-bold text-slate-900">Grafik & Analisis Arus Kas</h4>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Belum ada transaksi yang cukup untuk divisualisasikan. Catat transaksi pengeluaran dan pemasukan pertama Anda untuk melihat perbandingan tren arus kas secara real-time.
+          </p>
+        </div>
+      </Card>
+    );
+  }
 
-  const safeDailyData =
-    dailyData.length > 0
-      ? dailyData
-      : [
-          { date: '11 Okt', pengeluaran: 85000 },
-          { date: '12 Okt', pengeluaran: 120000 },
-          { date: '13 Okt', pengeluaran: 45000 },
-          { date: '14 Okt', pengeluaran: 230000 },
-          { date: '15 Okt', pengeluaran: 95000 },
-          { date: '16 Okt', pengeluaran: 160000 },
-          { date: '17 Okt', pengeluaran: 75000 },
-        ];
+  const safeCategoryData = categoryData;
+  const safeMonthlyData = monthlyData;
+  const safeDailyData = dailyData;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

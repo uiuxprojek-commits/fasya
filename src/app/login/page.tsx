@@ -19,6 +19,15 @@ function LoginForm() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState('');
 
+  React.useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'auth_callback_failed') {
+      setErrorMessage('Autentikasi gagal atau sesi login telah kedaluwarsa. Silakan coba masuk kembali.');
+    } else if (errorParam === 'unauthorized_admin') {
+      setErrorMessage('Akses ditolak: Anda tidak memiliki wewenang administrator.');
+    }
+  }, [searchParams]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -32,23 +41,25 @@ function LoginForm() {
       });
 
       if (error) {
-        // If demo/dev credentials in environment, allow smooth developer preview access
-        if (error.message.includes('fetch') || error.message.includes('dummy')) {
-          router.push(redirectTo);
-          return;
-        }
         throw error;
       }
 
       router.push(redirectTo);
+      router.refresh();
     } catch (err: unknown) {
-      setErrorMessage(
-        err instanceof Error
-          ? err.message === 'Invalid login credentials'
-            ? 'Email atau kata sandi tidak sesuai. Silakan periksa kembali.'
-            : err.message
-          : 'Terjadi kesalahan saat masuk. Coba lagi.'
-      );
+      if (err instanceof Error) {
+        if (err.message.includes('Invalid login credentials')) {
+          setErrorMessage('Email atau kata sandi tidak cocok. Silakan periksa kembali.');
+        } else if (err.message.includes('Email not confirmed')) {
+          setErrorMessage('Email Anda belum dikonfirmasi. Silakan periksa kotak masuk atau spam email Anda.');
+        } else if (err.message.includes('fetch')) {
+          setErrorMessage('Gagal menghubungi server Supabase. Pastikan koneksi internet Anda aktif.');
+        } else {
+          setErrorMessage(err.message);
+        }
+      } else {
+        setErrorMessage('Terjadi kesalahan saat masuk. Silakan coba lagi.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -57,14 +68,16 @@ function LoginForm() {
   const handleGoogleOAuth = async () => {
     try {
       const supabase = createClient();
-      await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
         },
       });
+      if (error) throw error;
     } catch (err) {
       console.error('Google OAuth error:', err);
+      setErrorMessage('Gagal memulai login Google. Pastikan Google Provider sudah diaktifkan di Supabase Dashboard.');
     }
   };
 

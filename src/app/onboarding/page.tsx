@@ -20,10 +20,12 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = React.useState(1);
+  const [isFinishing, setIsFinishing] = React.useState(false);
 
   // Step 1: Persona & Financial Habit
   const [occupation, setOccupation] = React.useState<'karyawan' | 'mahasiswa' | 'freelancer' | 'lainnya'>('karyawan');
@@ -46,19 +48,65 @@ export default function OnboardingPage() {
   // Step 4: Finish & Link Telegram
   const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'TataDanaBot';
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    setIsFinishing(true);
     try {
-      confetti({
-        particleCount: 80,
-        spread: 60,
-        origin: { y: 0.6 },
-      });
-    } catch {
-      // ignore
-    }
-    setTimeout(() => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        // 1. Update/Upsert profile
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          email: user.email || '',
+          full_name: user.user_metadata?.full_name || 'Pengguna TataDana',
+          phone_number: user.user_metadata?.phone_number || null,
+          monthly_income_estimate: parseFloat(monthlyIncome) || 0,
+          financial_goal: goal,
+          onboarding_completed: true,
+          updated_at: new Date().toISOString(),
+        });
+
+        // 2. Check if user already has wallets
+        const { data: existingWallets } = await supabase
+          .from('wallets')
+          .select('id')
+          .eq('user_id', user.id);
+
+        if (!existingWallets || existingWallets.length === 0) {
+          await supabase.from('wallets').insert({
+            user_id: user.id,
+            name: walletName.trim() || 'BCA Utama',
+            type: 'bank',
+            balance: parseFloat(initialBalance) || 0,
+            is_default: true,
+            color: '#3B82F6',
+          });
+        }
+      }
+
+      try {
+        confetti({
+          particleCount: 80,
+          spread: 60,
+          origin: { y: 0.6 },
+        });
+      } catch {
+        // ignore
+      }
+
+      setTimeout(() => {
+        router.push('/dashboard');
+        router.refresh();
+      }, 1000);
+    } catch (err) {
+      console.error('Error saving onboarding data:', err);
       router.push('/dashboard');
-    }, 1200);
+    } finally {
+      setIsFinishing(false);
+    }
   };
 
   return (
@@ -261,7 +309,7 @@ export default function OnboardingPage() {
                 <ArrowLeft className="w-4 h-4 mr-1.5" />
                 Kembali
               </Button>
-              <Button variant="primary" onClick={handleFinish}>
+              <Button variant="primary" onClick={handleFinish} isLoading={isFinishing}>
                 Selesai & Masuk Dashboard
                 <CheckCircle2 className="w-4 h-4 ml-1.5" />
               </Button>
