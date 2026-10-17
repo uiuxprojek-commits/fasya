@@ -27,18 +27,9 @@ export class MidtransService {
   private snapUrl: string;
 
   constructor() {
-    this.serverKey = process.env.MIDTRANS_SERVER_KEY || '';
-    
-    // Auto-detect production mode:
-    // If MIDTRANS_IS_PRODUCTION is set, respect it.
-    // Otherwise check server key prefix: 'Mid-server-' is production, 'SB-' is sandbox.
-    const envProd = process.env.MIDTRANS_IS_PRODUCTION;
-    if (envProd !== undefined && envProd !== '') {
-      this.isProduction = envProd === 'true';
-    } else {
-      this.isProduction = this.serverKey.startsWith('Mid-server-');
-    }
-
+    this.serverKey = (process.env.MIDTRANS_SERVER_KEY || '').trim();
+    // Default to Sandbox mode unless explicitly specified as 'true'
+    this.isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
     this.snapUrl = this.isProduction
       ? 'https://app.midtrans.com/snap/v1/transactions'
       : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
@@ -105,14 +96,13 @@ export class MidtransService {
       },
     };
 
-    console.log('[Midtrans] Creating transaction:', {
-      url: this.snapUrl,
-      isProduction: this.isProduction,
+    let targetUrl = this.snapUrl;
+    console.log('[Midtrans] Creating transaction on:', targetUrl, {
       orderId: params.orderId,
       grossAmount: grossAmountInt,
     });
 
-    const response = await fetch(this.snapUrl, {
+    let response = await fetch(targetUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -121,6 +111,29 @@ export class MidtransService {
       },
       body: JSON.stringify(payload),
     });
+
+    // If 401 Unauthorized, automatically try the alternate endpoint (Sandbox <-> Production)
+    if (response.status === 401) {
+      const alternateUrl = targetUrl.includes('sandbox')
+        ? 'https://app.midtrans.com/snap/v1/transactions'
+        : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
+
+      console.warn(`[Midtrans] 401 on ${targetUrl}, retrying with alternate endpoint: ${alternateUrl}`);
+      const retryResponse = await fetch(alternateUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Basic ${authHeader}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (retryResponse.ok) {
+        response = retryResponse;
+        this.snapUrl = alternateUrl;
+      }
+    }
 
     if (!response.ok) {
       const errText = await response.text();
